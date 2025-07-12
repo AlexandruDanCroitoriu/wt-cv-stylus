@@ -1,0 +1,7 @@
+/* Define custom variants */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Define custom theme */
+@theme {
+  --*: initial;
+}

@@ -1,0 +1,16 @@
+<messages>
+    <message id="example">
+        <div>------------------------</div>
+        <div>${tr:some-text message_path="000-examples/asada.xml"}</div>
+        <div>------------------------</div>
+    </message>
+    <message id="example">
+        <div>${tr:some-text message="000-examples/asada.xml~some-text"}</div>
+        <div>1</div>
+        <div>${tr:some-text message_path="000-examples/asada.xml"}</div>
+        <div>2</div>
+    </message>
+    <message id="some-text">
+        <div>some random text</div>
+    </message>
+</messages>

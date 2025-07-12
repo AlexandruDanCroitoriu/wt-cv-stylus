@@ -1,0 +1,66 @@
+<messages class="">
+    <message id="stylus:intro-script" class="">
+        <div class="space-y-2 ">
+            <div>Hello Emweb,</div>
+            <div>My name is Alex.</div>
+            <div>
+        A few years back, due to fortune, I had the opportunity to work with your Wt library and I enjoyed most of it.
+      </div>
+            <div>
+        As I tried to develop a product with only the guidance from your documentation, forum, and widget gallery, I found it really fun to develop applications in this manner. BUT, to make something look nice, you need templates, CSS, maybe some JS, and while it is a joy working with the library, creating the templates and the styles is a pain.
+      </div>
+            <div>
+        Having multiple types of files open in one editor, especially as a junior, was confusing.
+      </div>
+            <div>
+        Using Bootstrap to style things did not make me enjoy my creation, and from what I remember at the time, I tried to extend the Bootstrap SCSS files and the compiling time was 30-40 seconds. Not sure if I did something wrong there, but again, I was at a stop with how inconvenient it is to make things look nice. Maybe I missed something.
+      </div>
+            <div>
+        After my adventure with Wt stopped, I tried working with Django SSR and HTMX to achieve some kind of widget-centric approach to building an application but failed, probably due to skill issues.
+      </div>
+            <div>
+        I also tried React CSR, but for some reason, it did not attract me at all. I even worked with React for a short while, but it’s not for me!
+      </div>
+            <div>
+        Therefore, I kept thinking about how to make the development experience with Wt better, and a simple solution was to use Tailwind and CSS if needed.
+      </div>
+            <div>BUT</div>
+            <div>
+        Using Tailwind in widgets still requires you to build the app to see the changes. The alternative is to use templates, and after changing the template, you refresh the browser window and the new templates are loaded.
+      </div>
+            <div>
+        Using Django and React, I could edit something and the application would refresh and I would see the changes in a matter of milliseconds.
+      </div>
+            <div>
+        In this regard, I was thinking if I can achieve something like this in Wt, it would become my favorite framework.
+      </div>
+            <div>
+        Mission started, this is my 3rd attempt to create a visual builder in the hope of making the Wt UI development FUN!!!
+      </div>
+            <div class="p-2">
+                <div>Let’s set some rules:</div>
+                <div>0. We will call the visual builder "Stylus" because I like the name.</div>
+                <div>1. Stylus should handle all files except for C++ files to let the developer work on code from their editor and work on the UI from the UI.</div>
+                <div>2. Stylus should increase the speed of development.</div>
+            </div>
+            <div class="p-2">
+                <div>
+          Stylus uses Tailwind to compile a final CSS file and uploads it. This process happens any time a CSS or XML file is saved; that is the reason for some noticeable flickering after saving a CSS or XML file. The previous CSS file is removed.
+        </div>
+                <div>All files handled by Stylus can be seen in specific Monaco editors.</div>
+                <div>
+          Stylus handles CSS files where you can define classes as normal in any CSS file. Tailwind will compile those files and the classes will be present in the final CSS file to be automatically uploaded.
+        </div>
+                <div>
+          Stylus handles XML files where you can define your templates, preview and edit them via visual widgets, keyboard shortcuts, and general input control.
+        </div>
+            </div>
+            <div>
+        At the moment, a developer can manage their Tailwind configuration, CSS files, and templates from the UI. Also, JS files can be edited from the UI but they are not taken into consideration when it comes to Tailwind compiling or file includes and are also not automatically uploaded with the app. This is due to me not having a use for it yet.
+      </div>
+            <div>
+        Next steps include creating visual builder widgets for the template and controls for viewing/editing selected XML element classes.
+      </div>
+        </div>
+    </message>
+</messages>

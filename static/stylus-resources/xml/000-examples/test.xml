@@ -1,0 +1,82 @@
+<messages class="">
+    <message id="examples:test-1">
+        <div class="space-y-2 text-black text-center font-bold text-2xl">
+            <div>&lt;div&gt;test&lt;/div&gt;</div>
+            <div class="bg-[#FFC0CB]">tailwind class with arbitrary value</div>
+            <div class="test-class-2">css class as generaly defined</div>
+						${<if:cond true="true">}
+							<div class="test-class-1">css class using tailwind class with arbitrary value</div>
+						${</if:cond>}
+            </div>
+    </message>
+    <message id="examples:test-2">
+        <ul class="tree">
+            <li>
+                <details open="true">
+                    <summary>Giant planets</summary>
+                    <div>
+                        <ul>
+                            <li>
+                                <details open="true">
+                                    <summary>Gas giants</summary>
+                                    <ul>
+                                        <li>Jupiter</li>
+                                        <li>Saturn</li>
+                                    </ul>
+                                </details>
+                            </li>
+                            <li>
+                                <details open="true">
+                                    <summary>Ice giants</summary>
+                                    <ul>
+                                        <li>Uranus</li>
+                                        <li>Neptune</li>
+                                    </ul>
+                                </details>
+                            </li>
+                        </ul>
+                    </div>
+                </details>
+            </li>
+        </ul>
+    </message>
+    <message id="examples:tree-node" class="inline-block p-20">
+        <ul>
+            <li>
+                <details open="true">
+                    <summary>${label}</summary>
+                    <div>${content}</div>
+                </details>
+            </li>
+        </ul>
+    </message>
+    <message id="examples:test-3">
+        <ul class="tree">
+            <li>
+                <details open="true">
+                    <summary>root node</summary>
+                    <ul>
+                        <li>first child</li>
+                    </ul>
+                </details>
+            </li>
+        </ul>
+    </message>
+    <message id="examples:test-4">
+        <ul class="tree">
+            <li>
+                <details open="true">
+                    <summary>root node</summary>
+                    <ul>
+                        <li>
+                            <details open="true">
+                                <summary>first child</summary>
+                                <ul/>
+                            </details>
+                        </li>
+                    </ul>
+                </details>
+            </li>
+        </ul>
+    </message>
+</messages>

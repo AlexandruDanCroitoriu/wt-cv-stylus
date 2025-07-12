@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Created with Stylus Editor -->
+<messages>
+    <message id="example" class="">
+        <div>------------------------</div>
+        <span>${tr:some-text message_path="000-examples/asada.xml" }</span>${<jaklshdfkljashdf>}${tr:some-text message_path="000-examples/asada.xml" }${</jaklshdfkljashdf>}<div>------------------------</div>${<div true="false">}------------------------${</div>}</message>
+    <message id="some-text">
+        <span>asd</span>
+        <div>
+            <div>
+                <div>
+                    <div>
+                        <div/>
+                    </div>
+                </div>
+            </div>
+            <div class="flex-center flex ">aksjdghfkjashdgfkj</div>
+        </div>
+    </message>
+    <message id="example">
+        <div>------------------------</div>
+        <span>${tr:some-text message_path="000-examples/asada.xml" }</span>${<jaklshdfkljashdf>}${tr:some-text message_path="000-examples/asada.xml" }${</jaklshdfkljashdf>}<div>------------------------</div>${<div true="false">}------------------------${</div>}</message>
+    <message id="some-text">
+        <span>asd</span>
+        <div>
+            <div>
+                <div>
+                    <div>
+                        <div/>
+                    </div>
+                </div>
+            </div>
+            <div class="flex-center flex ">aksjdghfkjashdgfkj</div>
+        </div>
+    </message>
+</messages>

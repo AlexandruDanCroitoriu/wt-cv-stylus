@@ -1,0 +1,1 @@
+console.log("This is an empty file for MonacoEditor to load as an example.");
