@@ -11,31 +11,39 @@
 #include <Wt/WFileUpload.h>
 #include <Wt/WSignal.h>
 
+class Button; // Forward declaration
+
 
 class VoiceRecorder : public Wt::WContainerWidget
 {
 public:
     VoiceRecorder();
 
+    void disable();
+    void enable();
+
 private:
     void setupUI();
+    void setupJavaScriptRecorder();
     void startRecording();
     void stopRecording();
     void onFileUploaded();
     void onFileTooLarge();
     void uploadFile();
-    
+
     Wt::WText* status_text_;
     Wt::WAudio* audio_player_;
     Wt::WFileUpload* file_upload_;
-    Wt::WPushButton* play_pause_btn_;
-    Wt::WPushButton* upload_btn_;
-    Wt::WPushButton* clear_btn_;
+    Button* play_pause_btn_;
+    Button* upload_btn_;
     
     Wt::WContainerWidget* recording_info_;
+
     bool is_recording_;
-    std::string js_recorder_referance_;
     Wt::JSignal<bool> js_signal_voice_recording_supported_;
-    bool is_supported_ = false;
+    Wt::JSignal<bool> js_signal_microphone_avalable_;
+    bool is_audio_supported_;
+    bool is_microphone_available_;
+    bool is_enabled_;
 
 };

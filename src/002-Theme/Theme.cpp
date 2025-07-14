@@ -466,7 +466,7 @@ void Theme::setPenguinUiConfig()
     // setWidgetThemeClasses(PenguinUiWidgetTheme::TableRow, "");
     // setWidgetThemeClasses(PenguinUiWidgetTheme::TableColumn, "");
 
-    setWidgetThemeClasses(PenguinUiWidgetTheme::BtnDefault, "font-paragraph inline-flex items-center justify-center border whitespace-nowrap px-4 py-2 font-medium text-center transition tracking-whide disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-offset-2 active:opacity-100 disabled:opacity-75");
+    setWidgetThemeClasses(PenguinUiWidgetTheme::BtnDefault, "font-paragraph cursor-pointer inline-flex items-center justify-center border whitespace-nowrap px-4 py-2 font-medium text-center transition tracking-whide disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-offset-2 active:opacity-100 disabled:opacity-75");
 
     setWidgetThemeClasses(PenguinUiWidgetTheme::BtnPrimary, "rounded-radius bg-primary border-primary text-on-primary hover:opacity-75 focus-visible:outline-primary active:outline-offset-0");
     setWidgetThemeClasses(PenguinUiWidgetTheme::BtnSecondary, "rounded-radius bg-secondary border-secondary text-on-secondary hover:opacity-75 focus-visible:outline-secondary active:outline-offset-0");

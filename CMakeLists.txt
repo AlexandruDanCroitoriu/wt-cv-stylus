@@ -42,6 +42,7 @@ set(SOURCES
     ${SOURCE_DIR}/003-Components/ComponentsDisplay.cpp
     ${SOURCE_DIR}/003-Components/Button.cpp
     ${SOURCE_DIR}/003-Components/MonacoEditor.cpp
+    ${SOURCE_DIR}/003-Components/VoiceRecorder.cpp
     
     ${SOURCE_DIR}/004-Dbo/Session.cpp
     ${SOURCE_DIR}/004-Dbo/Tables/User.cpp
@@ -57,7 +58,6 @@ set(SOURCES
 
     ${SOURCE_DIR}/008-AboutMe/AboutMe.cpp
 
-    ${SOURCE_DIR}/010-VoiceRecorder/VoiceRecorder.cpp
 
     ${SOURCE_DIR}/101-StarWarsApi/StarWarsApi.cpp
 

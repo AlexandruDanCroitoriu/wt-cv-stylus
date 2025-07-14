@@ -3,6 +3,7 @@
 #include "002-Theme/Theme.h"
 #include "003-Components/Button.h"
 #include "003-Components/MonacoEditor.h"
+#include "003-Components/VoiceRecorder.h"
 
 #include <Wt/WApplication.h>
 #include <Wt/WTable.h>
@@ -18,8 +19,16 @@
 ComponentsDisplay::ComponentsDisplay()
 {
     setStyleClass("container h-[100%]");
+    createVoiceRecorder();
     createMonacoEditor();
     createButtons();
+}
+
+void ComponentsDisplay::createVoiceRecorder()
+{
+    auto wrapper = addWidget(std::make_unique<Wt::WContainerWidget>());
+    wrapper->addNew<VoiceRecorder>();
+    // wrapper->addNew<VoiceRecorder>();
 }
 
 void ComponentsDisplay::createMonacoEditor()

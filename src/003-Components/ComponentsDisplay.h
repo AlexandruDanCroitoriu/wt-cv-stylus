@@ -17,6 +17,7 @@ public:
     
     void createButtons();
     void createMonacoEditor();
+    void createVoiceRecorder();
 
 
 
