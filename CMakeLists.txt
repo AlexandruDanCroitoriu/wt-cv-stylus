@@ -26,6 +26,14 @@ FetchContent_MakeAvailable(json)
 FetchContent_Declare(cpr GIT_REPOSITORY https://github.com/libcpr/cpr.git GIT_TAG da40186618909b1a7363d4e4495aa899c6e0eb75) 
 FetchContent_MakeAvailable(cpr)
 
+# Whisper.cpp integration
+FetchContent_Declare(
+    whisper
+    GIT_REPOSITORY https://github.com/ggerganov/whisper.cpp.git
+    GIT_TAG v1.5.4
+)
+FetchContent_MakeAvailable(whisper)
+
 # ./app --docroot ../ –config ./wt_config.xml --http-address 0.0.0.0 --http-port 9020
 
 set(SOURCES
@@ -43,6 +51,7 @@ set(SOURCES
     ${SOURCE_DIR}/003-Components/Button.cpp
     ${SOURCE_DIR}/003-Components/MonacoEditor.cpp
     ${SOURCE_DIR}/003-Components/VoiceRecorder.cpp
+    ${SOURCE_DIR}/003-Components/WhisperWrapper.cpp
     
     ${SOURCE_DIR}/004-Dbo/Session.cpp
     ${SOURCE_DIR}/004-Dbo/Tables/User.cpp
@@ -74,11 +83,12 @@ target_link_libraries(${PROJECT_NAME}
     boost_regex
     cpr::cpr
     nlohmann_json::nlohmann_json
+    whisper
 )
 
 # Set runtime library path so the executable can find the shared libraries
 set_target_properties(${PROJECT_NAME} PROPERTIES
-    INSTALL_RPATH "${CMAKE_CURRENT_BINARY_DIR}/_deps/cpr-build/cpr"
+    INSTALL_RPATH "${CMAKE_CURRENT_BINARY_DIR}/_deps/cpr-build/cpr:${CMAKE_CURRENT_BINARY_DIR}/_deps/whisper-build"
     BUILD_WITH_INSTALL_RPATH TRUE
     INSTALL_RPATH_USE_LINK_PATH TRUE
 )
@@ -97,13 +107,8 @@ if(UNIX AND NOT APPLE)
 endif()
 
 add_custom_target(run
-    COMMAND ${CMAKE_COMMAND} -E env LD_LIBRARY_PATH=${CMAKE_CURRENT_BINARY_DIR}/_deps/cpr-build/cpr:$ENV{LD_LIBRARY_PATH} $<TARGET_FILE:${PROJECT_NAME}> ${RLIB}
+    COMMAND ${CMAKE_COMMAND} -E env LD_LIBRARY_PATH=${CMAKE_CURRENT_BINARY_DIR}/_deps/cpr-build/cpr:${CMAKE_CURRENT_BINARY_DIR}/_deps/whisper-build:$ENV{LD_LIBRARY_PATH} $<TARGET_FILE:${PROJECT_NAME}> ${RLIB}
     DEPENDS ${PROJECT_NAME}
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
     COMMENT "Running ${PROJECT_NAME} with proper library paths"
 )
-# add_custom_target(run
-#     COMMAND ${PROJECT_NAME} ${RLIB} > ./logs.txt 2>&1
-#     DEPENDS ${PROJECT_NAME}
-#     WORKING_DIRECTORY ${CMAKE_PROJECT_DIR}
-# )

@@ -1,18 +1,28 @@
 #include "003-Components/VoiceRecorder.h"
 #include "003-Components/Button.h"
+#include "003-Components/WhisperWrapper.h"
 #include <Wt/WApplication.h>
 #include <Wt/WJavaScript.h>
 #include <Wt/WTemplate.h>
 #include <Wt/WText.h>
+#include <Wt/WComboBox.h>
+#include <Wt/WTextArea.h>
 #include <iostream>
+#include <filesystem>
+#include <fstream>
+#include <chrono>
+#include <iomanip>
+#include <sstream>
 
 VoiceRecorder::VoiceRecorder() 
     : is_recording_(false), 
     js_signal_voice_recording_supported_(this, "voiceRecordingSupported"),
     js_signal_microphone_avalable_(this, "microphoneAvailable"),
+    js_signal_audio_widget_has_media_(this, "audioWidgetHasMedia"),
     is_audio_supported_(false),
     is_microphone_available_(false),
-    is_enabled_(true)
+    is_enabled_(true),
+    whisper_(std::make_unique<WhisperWrapper>())
 {
     // setStyleClass("space-y-2 flex items-center border relative rounded-radius m-5");
     
@@ -45,12 +55,24 @@ VoiceRecorder::VoiceRecorder()
             disable();
         }
     });
+    js_signal_audio_widget_has_media_.connect(this, [=](bool has_media){
+        std::cout << "Audio widget media status: " << (has_media ? "Has Media" : "No Media") << std::endl;
+        if (has_media) {
+            uploadFile();
+            transcribe_btn_->enable();
+        } else {
+            transcribe_btn_->disable();
+        }
+    });
 
     setupUI();
     setupJavaScriptRecorder();
+    initializeWhisper();
     // Initialize the recorder when the DOM is ready
     doJavaScript("setTimeout(function() { if (" + jsRef() + ") { " + jsRef() + ".init(); } }, 200);");
 }
+
+VoiceRecorder::~VoiceRecorder() = default;
 
 void VoiceRecorder::setupUI()
 {
@@ -86,8 +108,32 @@ void VoiceRecorder::setupUI()
     upload_btn_ = widget_wrapper->addNew<Button>(std::string(Wt::WString::tr("app:download-svg").toUTF8()), "m-1.5 text-xs ", PenguinUiWidgetTheme::BtnSuccessAction);
     upload_btn_->clicked().connect(this, &VoiceRecorder::uploadFile);
     upload_btn_->disable();
+    
+    // Transcribe button
+    transcribe_btn_ = widget_wrapper->addNew<Button>("🎤→📝", "m-1.5 text-xs ", PenguinUiWidgetTheme::BtnPrimaryAction);
+    transcribe_btn_->clicked().connect(this, &VoiceRecorder::transcribeCurrentAudio);
+    transcribe_btn_->disable();
+    
+    // Language selector
+    language_selector_ = widget_wrapper->addNew<Wt::WComboBox>();
+    language_selector_->setStyleClass("m-1.5 text-xs");
+    auto languages = WhisperWrapper::getSupportedLanguages();
+    for (const auto& lang : languages) {
+        language_selector_->addItem(lang);
+    }
+    language_selector_->setCurrentIndex(0); // "auto"
+    language_selector_->changed().connect([this]() {
+        setLanguage(language_selector_->currentText().toUTF8());
+    });
+    
     recording_info_ = debug_wrapper->addNew<Wt::WContainerWidget>();
     recording_info_->setStyleClass("flex flex-col space-y-2");
+    
+    // Transcription display area
+    transcription_display_ = debug_wrapper->addNew<Wt::WTextArea>();
+    transcription_display_->setStyleClass("w-full h-32 p-2 border border-outline rounded-radius bg-surface text-on-surface");
+    transcription_display_->setPlaceholderText("Transcribed text will appear here...");
+    transcription_display_->setReadOnly(true);
      
     file_upload_ = debug_wrapper->addNew<Wt::WFileUpload>();
     file_upload_->setStyleClass("bg-white mb-2");
@@ -129,14 +175,39 @@ void VoiceRecorder::stopRecording()
 void VoiceRecorder::onFileUploaded()
 {
     std::cout << "File uploaded successfully." << std::endl;
-    std::string fileName = file_upload_->spoolFileName();
+    std::string tempFileName = file_upload_->spoolFileName();
     std::string clientFileName = file_upload_->clientFileName().toUTF8();
     
-    if (!fileName.empty()) {
-        status_text_->setText("Audio file uploaded: " + clientFileName);
+    if (!tempFileName.empty()) {
+        // Create audio-files directory if it doesn't exist
+        std::string audioDir = createAudioFilesDirectory();
         
-        std::cout << "Audio file uploaded: " << clientFileName 
-                  << " (temp file: " << fileName << ")" << std::endl;
+        if (!audioDir.empty()) {
+            // Generate unique filename to avoid conflicts
+            std::string uniqueFileName = generateUniqueFileName(clientFileName);
+            std::string permanentPath = audioDir + "/" + uniqueFileName;
+            
+            // Save the uploaded file to the permanent location
+            if (saveAudioFile(tempFileName, permanentPath)) {
+                current_audio_file_ = permanentPath;
+                transcribe_btn_->enable();
+                status_text_->setText("Audio file saved: " + uniqueFileName);
+                std::cout << "Audio file saved: " << permanentPath << std::endl;
+                // Trigger transcription after upload
+                transcription_display_->setText("Transcribing audio...");
+                current_transcription_ = whisper_->transcribeFile(current_audio_file_);
+                transcription_display_->setText(current_transcription_);
+                transcription_complete_.emit(current_transcription_);
+            } else {
+                status_text_->setText("Error: Failed to save audio file");
+                std::cout << "Failed to save audio file to: " << permanentPath << std::endl;
+            }
+        } else {
+            status_text_->setText("Error: Could not create audio-files directory");
+            // Fallback to using temp file
+            current_audio_file_ = tempFileName;
+            transcribe_btn_->enable();
+        }
     }
 }
 
@@ -161,6 +232,7 @@ void VoiceRecorder::enable()
     is_enabled_ = true;
     audio_player_->enable();
     play_pause_btn_->enable();
+    language_selector_->enable();
     // upload_btn_->enable();
 }
 
@@ -169,6 +241,8 @@ void VoiceRecorder::disable()
     is_enabled_ = false;
     audio_player_->disable();
     play_pause_btn_->disable();
+    transcribe_btn_->disable();
+    language_selector_->disable();
     // upload_btn_->disable();
 }
 
@@ -283,8 +357,11 @@ void VoiceRecorder::setupJavaScriptRecorder()
                                     fileInput.dispatchEvent(changeEvent);
                                     
                                     console.log('Audio file set to file upload widget:', audioFile.name, audioFile.size, 'bytes');
+                                    )" + js_signal_audio_widget_has_media_.createCall({"true"}) + R"(
+                                
                                 } else {
                                     console.error('File input element not found in:', fileUploadElement);
+                                    )" + js_signal_audio_widget_has_media_.createCall({"false"}) + R"(
                                 }
                             } else {
                                 console.error('File upload element not found with ID: )" + file_upload_->id() + R"(');
@@ -324,5 +401,204 @@ void VoiceRecorder::setupJavaScriptRecorder()
     )");
 
    
+}
+
+void VoiceRecorder::initializeWhisper()
+{
+    // Look for Whisper models in models directory
+    std::vector<std::string> models_dirs = {
+        "models/",           // When running from project root
+        "../../models/",     // When running from build/debug
+        "../models/",        // When running from build
+        "./models/"          // Current directory
+    };
+    
+    std::vector<std::string> model_files = {
+        "ggml-base.en.bin",
+        "ggml-base.bin", 
+        "ggml-small.en.bin",
+        "ggml-small.bin",
+        "ggml-tiny.en.bin",
+        "ggml-tiny.bin"
+    };
+    
+    std::string model_path;
+    for (const auto& models_dir : models_dirs) {
+        for (const auto& model_file : model_files) {
+            std::string full_path = models_dir + model_file;
+            if (std::filesystem::exists(full_path)) {
+                model_path = full_path;
+                std::cout << "Found Whisper model: " << full_path << std::endl;
+                break;
+            }
+        }
+        if (!model_path.empty()) break;
+    }
+    
+    if (model_path.empty()) {
+        std::cout << "No Whisper model found in any models/ directory. " 
+                  << "Please download a model from https://huggingface.co/ggerganov/whisper.cpp" << std::endl;
+        std::cout << "Recommended: wget https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en.bin -P models/" << std::endl;
+        recording_info_->addNew<Wt::WText>("No Whisper model found. Transcription disabled.")->setStyleClass("text-red-500");
+        return;
+    }
+    
+    if (whisper_->initialize(model_path)) {
+        std::cout << "Whisper initialized with model: " << model_path << std::endl;
+        recording_info_->addNew<Wt::WText>("Speech-to-text ready ✓")->setStyleClass("text-green-500");
+    } else {
+        std::cout << "Failed to initialize Whisper: " << whisper_->getLastError() << std::endl;
+        recording_info_->addNew<Wt::WText>("Whisper initialization failed. Transcription disabled.")->setStyleClass("text-red-500");
+    }
+}
+
+void VoiceRecorder::transcribeCurrentAudio()
+{
+    if (!whisper_->isInitialized()) {
+        status_text_->setText("Whisper not initialized");
+        return;
+    }
+    
+    if (current_audio_file_.empty()) {
+        status_text_->setText("No audio file to transcribe");
+        return;
+    }
+    
+    status_text_->setText("Transcribing audio...");
+    transcribe_btn_->disable();
+    
+    // Perform transcription in a separate thread to avoid blocking UI
+    // For now, doing it synchronously for simplicity
+    performTranscription();
+}
+
+void VoiceRecorder::performTranscription()
+{
+    std::string transcription = whisper_->transcribeFile(current_audio_file_);
+    
+    if (!transcription.empty()) {
+        current_transcription_ = transcription;
+        transcription_display_->setText(transcription);
+        
+        // Check if a converted WAV file was created
+        std::string wav_file = current_audio_file_;
+        size_t lastDot = wav_file.find_last_of('.');
+        if (lastDot != std::string::npos) {
+            wav_file = wav_file.substr(0, lastDot) + "_converted.wav";
+        } else {
+            wav_file += "_converted.wav";
+        }
+        
+        if (std::filesystem::exists(wav_file)) {
+            status_text_->setText("Transcription complete (WAV file saved)");
+            std::cout << "Converted WAV file saved: " << wav_file << std::endl;
+        } else {
+            status_text_->setText("Transcription complete");
+        }
+        
+        // Emit signal for external handlers
+        transcription_complete_.emit(transcription);
+        
+        std::cout << "Transcription: " << transcription << std::endl;
+    } else {
+        status_text_->setText("Transcription failed: " + whisper_->getLastError());
+        std::cout << "Transcription failed: " << whisper_->getLastError() << std::endl;
+    }
+    
+    transcribe_btn_->enable();
+}
+
+std::string VoiceRecorder::getTranscription() const
+{
+    return current_transcription_;
+}
+
+void VoiceRecorder::setLanguage(const std::string& language)
+{
+    if (whisper_) {
+        whisper_->setLanguage(language);
+        std::cout << "Language set to: " << language << std::endl;
+    }
+}
+
+std::string VoiceRecorder::createAudioFilesDirectory()
+{
+    try {
+        // Get the document root from Wt application
+        std::string docRoot = Wt::WApplication::instance()->docRoot();
+        std::string audioDir = docRoot + "/audio-files";
+        
+        // Create directory if it doesn't exist
+        if (!std::filesystem::exists(audioDir)) {
+            std::filesystem::create_directories(audioDir);
+            std::cout << "Created audio-files directory: " << audioDir << std::endl;
+        }
+        
+        return audioDir;
+    } catch (const std::exception& e) {
+        std::cerr << "Error creating audio-files directory: " << e.what() << std::endl;
+        return "";
+    }
+}
+
+std::string VoiceRecorder::generateUniqueFileName(const std::string& originalName)
+{
+    // Get current timestamp
+    auto now = std::chrono::system_clock::now();
+    auto time_t = std::chrono::system_clock::to_time_t(now);
+    auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+        now.time_since_epoch()) % 1000;
+    
+    std::stringstream ss;
+    ss << std::put_time(std::localtime(&time_t), "%Y%m%d_%H%M%S");
+    ss << "_" << std::setfill('0') << std::setw(3) << ms.count();
+    
+    // Extract file extension
+    std::string extension = "";
+    size_t dotPos = originalName.find_last_of('.');
+    if (dotPos != std::string::npos) {
+        extension = originalName.substr(dotPos);
+    } else {
+        extension = ".webm"; // Default for recorded audio
+    }
+    
+    return "audio_" + ss.str() + extension;
+}
+
+bool VoiceRecorder::saveAudioFile(const std::string& tempPath, const std::string& permanentPath)
+{
+    try {
+        std::ifstream src(tempPath, std::ios::binary);
+        if (!src.is_open()) {
+            std::cerr << "Cannot open source file: " << tempPath << std::endl;
+            return false;
+        }
+        
+        std::ofstream dst(permanentPath, std::ios::binary);
+        if (!dst.is_open()) {
+            std::cerr << "Cannot create destination file: " << permanentPath << std::endl;
+            src.close();
+            return false;
+        }
+        
+        // Copy file contents
+        dst << src.rdbuf();
+        
+        src.close();
+        dst.close();
+        
+        // Verify the file was created successfully
+        if (std::filesystem::exists(permanentPath)) {
+            std::cout << "Successfully saved audio file: " << permanentPath << std::endl;
+            return true;
+        } else {
+            std::cerr << "File save verification failed: " << permanentPath << std::endl;
+            return false;
+        }
+        
+    } catch (const std::exception& e) {
+        std::cerr << "Exception while saving audio file: " << e.what() << std::endl;
+        return false;
+    }
 }
 

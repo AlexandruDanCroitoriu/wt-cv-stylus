@@ -19,7 +19,7 @@
       <debug>false</debug>
       <log-file></log-file>
       <log-config>* -debug</log-config>
-      <max-request-size>128</max-request-size>
+      <max-request-size>1024</max-request-size>
       <max-formdata-size>5120</max-formdata-size>
       <max-pending-events>1000</max-pending-events>
       <num-threads>10</num-threads>

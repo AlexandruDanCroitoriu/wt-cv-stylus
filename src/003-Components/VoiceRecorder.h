@@ -10,17 +10,29 @@
 #include <Wt/WAudio.h>
 #include <Wt/WFileUpload.h>
 #include <Wt/WSignal.h>
+#include <Wt/WComboBox.h>
+#include <memory>
 
 class Button; // Forward declaration
+class WhisperWrapper; // Forward declaration
 
 
 class VoiceRecorder : public Wt::WContainerWidget
 {
 public:
     VoiceRecorder();
+    ~VoiceRecorder(); // Explicit destructor needed for std::unique_ptr with forward declaration
 
     void disable();
     void enable();
+    
+    // Transcription methods
+    void transcribeCurrentAudio();
+    std::string getTranscription() const;
+    void setLanguage(const std::string& language);
+    
+    // Signal for when transcription is complete
+    Wt::Signal<std::string>& transcriptionComplete() { return transcription_complete_; }
 
 private:
     void setupUI();
@@ -30,20 +42,37 @@ private:
     void onFileUploaded();
     void onFileTooLarge();
     void uploadFile();
+    void initializeWhisper();
+    void performTranscription();
+    
+    // Audio file management
+    std::string createAudioFilesDirectory();
+    std::string generateUniqueFileName(const std::string& originalName);
+    bool saveAudioFile(const std::string& tempPath, const std::string& permanentPath);
 
     Wt::WText* status_text_;
     Wt::WAudio* audio_player_;
     Wt::WFileUpload* file_upload_;
     Button* play_pause_btn_;
     Button* upload_btn_;
+    Button* transcribe_btn_;
     
     Wt::WContainerWidget* recording_info_;
+    Wt::WTextArea* transcription_display_;
+    Wt::WComboBox* language_selector_;
 
     bool is_recording_;
     Wt::JSignal<bool> js_signal_voice_recording_supported_;
     Wt::JSignal<bool> js_signal_microphone_avalable_;
+    Wt::JSignal<bool> js_signal_audio_widget_has_media_;
     bool is_audio_supported_;
     bool is_microphone_available_;
     bool is_enabled_;
+    
+    // Whisper integration
+    std::unique_ptr<WhisperWrapper> whisper_;
+    std::string current_transcription_;
+    std::string current_audio_file_;
+    Wt::Signal<std::string> transcription_complete_;
 
 };
