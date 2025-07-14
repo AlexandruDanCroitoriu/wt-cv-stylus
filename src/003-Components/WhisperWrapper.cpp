@@ -24,7 +24,7 @@ std::string getCurrentTimestamp() {
 }
 
 WhisperWrapper::WhisperWrapper() 
-    : context_(nullptr), language_("auto") {
+    : context_(nullptr) {
 }
 
 WhisperWrapper::~WhisperWrapper() {
@@ -34,14 +34,30 @@ WhisperWrapper::~WhisperWrapper() {
     }
 }
 
-bool WhisperWrapper::initialize(const std::string& model_path) {
-    // Check if model file exists
-    std::ifstream file(model_path);
-    if (!file.good()) {
-        setError("Model file not found: " + model_path);
+bool WhisperWrapper::initialize() {
+    // Fixed model path for ggml-base.en.bin
+    std::vector<std::string> models_dirs = {
+        "models/",           // When running from project root
+        "../../models/",     // When running from build/debug
+        "../models/",        // When running from build
+        "./models/"          // Current directory
+    };
+    
+    std::string model_path;
+    for (const auto& models_dir : models_dirs) {
+        std::string full_path = models_dir + "ggml-base.en.bin";
+        if (std::ifstream(full_path).good()) {
+            model_path = full_path;
+            std::cout << "Found Whisper model: " << full_path << std::endl;
+            break;
+        }
+    }
+    
+    if (model_path.empty()) {
+        setError("Model file ggml-base.en.bin not found in any models/ directory. "
+                 "Please download from https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en.bin");
         return false;
     }
-    file.close();
 
     // Initialize whisper context with optimized parameters
     struct whisper_context_params cparams = whisper_context_default_params();
@@ -124,10 +140,8 @@ std::string WhisperWrapper::transcribeAudioData(const std::vector<float>& audio_
     wparams.logprob_thold    = -1.0f;  // Log probability threshold
     wparams.no_speech_thold  = 0.6f;   // No speech threshold
     
-    // Set language if specified
-    if (language_ != "auto") {
-        wparams.language = language_.c_str();
-    }
+    // Set language to English (en) for ggml-base.en.bin model
+    wparams.language = "en";
     
     // Run inference
     int result = whisper_full(context_, wparams, audio_data.data(), audio_data.size());
@@ -175,22 +189,7 @@ bool WhisperWrapper::convertAudioToWav(const std::string& input_file, const std:
     return true;
 }
 
-std::vector<std::string> WhisperWrapper::getSupportedLanguages() {
-    return {
-        "auto", "en", "zh", "de", "es", "ru", "ko", "fr", "ja", "pt", "tr", "pl", "ca", "nl", 
-        "ar", "sv", "it", "id", "hi", "fi", "vi", "he", "uk", "el", "ms", "cs", "ro", "da",
-        "hu", "ta", "no", "th", "ur", "hr", "bg", "lt", "la", "mi", "ml", "cy", "sk", "te",
-        "fa", "lv", "bn", "sr", "az", "sl", "kn", "et", "mk", "br", "eu", "is", "hy", "ne",
-        "mn", "bs", "kk", "sq", "sw", "gl", "mr", "pa", "si", "km", "sn", "yo", "so", "af",
-        "oc", "ka", "be", "tg", "sd", "gu", "am", "yi", "lo", "uz", "fo", "ht", "ps", "tk",
-        "nn", "mt", "sa", "lb", "my", "bo", "tl", "mg", "as", "tt", "haw", "ln", "ha", "ba",
-        "jw", "su"
-    };
-}
 
-void WhisperWrapper::setLanguage(const std::string& language) {
-    language_ = language;
-}
 
 bool WhisperWrapper::loadAudioFile(const std::string& file_path, std::vector<float>& audio_data) {
     std::ifstream file(file_path, std::ios::binary);

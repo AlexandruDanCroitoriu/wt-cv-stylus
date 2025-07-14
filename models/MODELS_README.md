@@ -17,7 +17,7 @@ Run the download script to get the base English model:
 | ggml-base.en.bin | 74MB | Fast | Good | English-only, recommended |
 | ggml-small.bin | 244MB | Medium | Better | Multi-language |
 | ggml-medium.bin | 769MB | Slow | Great | High accuracy needed |
-| ggml-large-v3.bin | 1550MB | Slowest | Best | Maximum accuracy |
+| ggml-large-v3.bin | 2.9GB | Slowest | Best | Maximum accuracy |
 
 ## Download Manually
 

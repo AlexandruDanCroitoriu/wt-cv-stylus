@@ -29,9 +29,9 @@ wget -c https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en.b
 # echo "Downloading medium model..."
 # wget -c https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-medium.bin
 
-# Large model (best accuracy, slowest - 1550MB)
-# echo "Downloading large model..."
-# wget -c https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3.bin
+# Large model (best accuracy, slowest - 2.9GB)
+echo "Downloading large-v3 model..."
+wget -c https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3.bin
 
 echo "Model download complete!"
 echo ""

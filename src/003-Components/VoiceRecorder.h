@@ -10,7 +10,6 @@
 #include <Wt/WAudio.h>
 #include <Wt/WFileUpload.h>
 #include <Wt/WSignal.h>
-#include <Wt/WComboBox.h>
 #include <memory>
 
 class Button; // Forward declaration
@@ -29,7 +28,6 @@ public:
     // Transcription methods
     void transcribeCurrentAudio();
     std::string getTranscription() const;
-    void setLanguage(const std::string& language);
     
     // Signal for when transcription is complete
     Wt::Signal<std::string>& transcriptionComplete() { return transcription_complete_; }
@@ -59,7 +57,6 @@ private:
     
     Wt::WContainerWidget* recording_info_;
     Wt::WTextArea* transcription_display_;
-    Wt::WComboBox* language_selector_;
 
     bool is_recording_;
     Wt::JSignal<bool> js_signal_voice_recording_supported_;

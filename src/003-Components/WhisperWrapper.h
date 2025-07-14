@@ -12,8 +12,8 @@ public:
     WhisperWrapper();
     ~WhisperWrapper();
 
-    // Initialize with model file path
-    bool initialize(const std::string& model_path);
+    // Initialize with default model (ggml-base.en.bin)
+    bool initialize();
     
     // Transcribe audio file
     std::string transcribeFile(const std::string& audio_file_path);
@@ -27,11 +27,7 @@ public:
     // Convert and save audio file to WAV format in same directory
     static std::string convertAndSaveAudioToWav(const std::string& input_file);
     
-    // Get supported languages
-    static std::vector<std::string> getSupportedLanguages();
-    
-    // Set language (default is "auto" for automatic detection)
-    void setLanguage(const std::string& language);
+
     
     // Check if initialized properly
     bool isInitialized() const { return context_ != nullptr; }
@@ -41,7 +37,6 @@ public:
 
 private:
     whisper_context* context_;
-    std::string language_;
     std::string last_error_;
     
     // Helper methods

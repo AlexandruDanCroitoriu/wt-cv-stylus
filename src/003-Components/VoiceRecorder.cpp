@@ -5,7 +5,6 @@
 #include <Wt/WJavaScript.h>
 #include <Wt/WTemplate.h>
 #include <Wt/WText.h>
-#include <Wt/WComboBox.h>
 #include <Wt/WTextArea.h>
 #include <iostream>
 #include <filesystem>
@@ -114,18 +113,6 @@ void VoiceRecorder::setupUI()
     transcribe_btn_->clicked().connect(this, &VoiceRecorder::transcribeCurrentAudio);
     transcribe_btn_->disable();
     
-    // Language selector
-    language_selector_ = widget_wrapper->addNew<Wt::WComboBox>();
-    language_selector_->setStyleClass("m-1.5 text-xs");
-    auto languages = WhisperWrapper::getSupportedLanguages();
-    for (const auto& lang : languages) {
-        language_selector_->addItem(lang);
-    }
-    language_selector_->setCurrentIndex(0); // "auto"
-    language_selector_->changed().connect([this]() {
-        setLanguage(language_selector_->currentText().toUTF8());
-    });
-    
     recording_info_ = debug_wrapper->addNew<Wt::WContainerWidget>();
     recording_info_->setStyleClass("flex flex-col space-y-2");
     
@@ -232,7 +219,6 @@ void VoiceRecorder::enable()
     is_enabled_ = true;
     audio_player_->enable();
     play_pause_btn_->enable();
-    language_selector_->enable();
     // upload_btn_->enable();
 }
 
@@ -242,7 +228,6 @@ void VoiceRecorder::disable()
     audio_player_->disable();
     play_pause_btn_->disable();
     transcribe_btn_->disable();
-    language_selector_->disable();
     // upload_btn_->disable();
 }
 
@@ -405,46 +390,8 @@ void VoiceRecorder::setupJavaScriptRecorder()
 
 void VoiceRecorder::initializeWhisper()
 {
-    // Look for Whisper models in models directory
-    std::vector<std::string> models_dirs = {
-        "models/",           // When running from project root
-        "../../models/",     // When running from build/debug
-        "../models/",        // When running from build
-        "./models/"          // Current directory
-    };
-    
-    std::vector<std::string> model_files = {
-        "ggml-base.en.bin",
-        "ggml-base.bin", 
-        "ggml-small.en.bin",
-        "ggml-small.bin",
-        "ggml-tiny.en.bin",
-        "ggml-tiny.bin"
-    };
-    
-    std::string model_path;
-    for (const auto& models_dir : models_dirs) {
-        for (const auto& model_file : model_files) {
-            std::string full_path = models_dir + model_file;
-            if (std::filesystem::exists(full_path)) {
-                model_path = full_path;
-                std::cout << "Found Whisper model: " << full_path << std::endl;
-                break;
-            }
-        }
-        if (!model_path.empty()) break;
-    }
-    
-    if (model_path.empty()) {
-        std::cout << "No Whisper model found in any models/ directory. " 
-                  << "Please download a model from https://huggingface.co/ggerganov/whisper.cpp" << std::endl;
-        std::cout << "Recommended: wget https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en.bin -P models/" << std::endl;
-        recording_info_->addNew<Wt::WText>("No Whisper model found. Transcription disabled.")->setStyleClass("text-red-500");
-        return;
-    }
-    
-    if (whisper_->initialize(model_path)) {
-        std::cout << "Whisper initialized with model: " << model_path << std::endl;
+    if (whisper_->initialize()) {
+        std::cout << "Whisper initialized with ggml-base.en.bin model" << std::endl;
         recording_info_->addNew<Wt::WText>("Speech-to-text ready ✓")->setStyleClass("text-green-500");
     } else {
         std::cout << "Failed to initialize Whisper: " << whisper_->getLastError() << std::endl;
@@ -511,14 +458,6 @@ void VoiceRecorder::performTranscription()
 std::string VoiceRecorder::getTranscription() const
 {
     return current_transcription_;
-}
-
-void VoiceRecorder::setLanguage(const std::string& language)
-{
-    if (whisper_) {
-        whisper_->setLanguage(language);
-        std::cout << "Language set to: " << language << std::endl;
-    }
 }
 
 std::string VoiceRecorder::createAudioFilesDirectory()
