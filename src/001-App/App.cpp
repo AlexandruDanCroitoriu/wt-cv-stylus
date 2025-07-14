@@ -7,6 +7,7 @@
 
 #include "003-Components/ComponentsDisplay.h"
 #include "008-AboutMe/AboutMe.h"
+#include "010-VoiceRecorder/VoiceRecorder.h"
 #include "101-StarWarsApi/StarWarsApi.h"
 
 #include <Wt/WStackedWidget.h>
@@ -134,6 +135,7 @@ void App::createApp()
     auto navbar = app_root_->addNew<Navigation>(session_);
     
     navbar->addPage("Portofolio", std::make_unique<AboutMe>());
+    navbar->addPage("Voice Recorder", std::make_unique<VoiceRecorder>());
     navbar->addPage("Start wars api", std::make_unique<StarWarsApi>());
     navbar->addPage("UI Penguin", std::make_unique<ComponentsDisplay>());
 }

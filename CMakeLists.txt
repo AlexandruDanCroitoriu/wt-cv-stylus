@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.13...3.22)
 include(FetchContent)
+include(ExternalProject)
 
 project(app)
 
@@ -11,7 +12,7 @@ if(NOT N EQUAL 0)
 endif()
 
 set(CMAKE_CXX_STANDARD 17)
-set(XMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -pthread")
 set(RLIB --docroot ../../ -c ../../wt_config.xml --http-address 0.0.0.0 --http-port 9020)
 set(SOURCE_DIR ${PROJECT_SOURCE_DIR}/src/)
@@ -56,6 +57,8 @@ set(SOURCES
 
     ${SOURCE_DIR}/008-AboutMe/AboutMe.cpp
 
+    ${SOURCE_DIR}/010-VoiceRecorder/VoiceRecorder.cpp
+
     ${SOURCE_DIR}/101-StarWarsApi/StarWarsApi.cpp
 
 )
@@ -73,10 +76,31 @@ target_link_libraries(${PROJECT_NAME}
     nlohmann_json::nlohmann_json
 )
 
+# Set runtime library path so the executable can find the shared libraries
+set_target_properties(${PROJECT_NAME} PROPERTIES
+    INSTALL_RPATH "${CMAKE_CURRENT_BINARY_DIR}/_deps/cpr-build/cpr"
+    BUILD_WITH_INSTALL_RPATH TRUE
+    INSTALL_RPATH_USE_LINK_PATH TRUE
+)
+
+# Add pthread for threading support (if not already present)
+find_package(Threads REQUIRED)
+target_link_libraries(${PROJECT_NAME} Threads::Threads)
+
+# Platform-specific libraries
+if(APPLE)
+    target_link_libraries(${PROJECT_NAME} "-framework Accelerate")
+endif()
+
+if(UNIX AND NOT APPLE)
+    target_link_libraries(${PROJECT_NAME} m dl)
+endif()
+
 add_custom_target(run
-    COMMAND ${PROJECT_NAME} ${RLIB}
+    COMMAND ${CMAKE_COMMAND} -E env LD_LIBRARY_PATH=${CMAKE_CURRENT_BINARY_DIR}/_deps/cpr-build/cpr:$ENV{LD_LIBRARY_PATH} $<TARGET_FILE:${PROJECT_NAME}> ${RLIB}
     DEPENDS ${PROJECT_NAME}
-    WORKING_DIRECTORY ${CMAKE_PROJECT_DIR}
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+    COMMENT "Running ${PROJECT_NAME} with proper library paths"
 )
 # add_custom_target(run
 #     COMMAND ${PROJECT_NAME} ${RLIB} > ./logs.txt 2>&1

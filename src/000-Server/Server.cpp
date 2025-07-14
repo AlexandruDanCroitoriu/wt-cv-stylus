@@ -151,5 +151,4 @@ void Server::configureAuth()
     for (const auto& oAuthService : oAuthServices) {
         oAuthService->generateRedirectEndpoint();
     }
-
 }

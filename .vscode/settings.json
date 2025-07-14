@@ -1,8 +1,12 @@
 {
-    "github.copilot.chat.codeGeneration.instructions": [
-        {
-            "file": "docs/development_guide.md",
-        },
+    "github.copilot.chat.codeGeneration.instructions.files": [
+        "docs/development_guide.md",
+        "docs/project-overview.md", 
+        "docs/component-reference.md",
+        "docs/api-reference.md",
+        "docs/QUICK_REFERENCE.md",
+        "docs/build-deployment.md",
+        "docs/GETTING_STARTED.md"
     ],
     "files.associations": {
         "WWebWidget.C": "cpp",
