@@ -15,19 +15,11 @@ public:
     // Initialize with default model (ggml-base.en.bin)
     bool initialize();
     
-    // Transcribe audio file
+    // Transcribe audio file (expects 16kHz mono WAV format from browser)
     std::string transcribeFile(const std::string& audio_file_path);
     
     // Transcribe raw audio data (16kHz, mono, float32)
     std::string transcribeAudioData(const std::vector<float>& audio_data);
-    
-    // Convert audio file to required format (WAV 16kHz mono)
-    static bool convertAudioToWav(const std::string& input_file, const std::string& output_file);
-    
-    // Convert and save audio file to WAV format in same directory
-    static std::string convertAndSaveAudioToWav(const std::string& input_file);
-    
-
     
     // Check if initialized properly
     bool isInitialized() const { return context_ != nullptr; }

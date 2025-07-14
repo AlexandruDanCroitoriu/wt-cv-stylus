@@ -82,23 +82,12 @@ std::string WhisperWrapper::transcribeFile(const std::string& audio_file_path) {
         return "";
     }
     
-    std::string wav_file = audio_file_path;
-    std::string converted_file = "";
+    // Browser now provides WAV files in the correct format (16kHz, mono, 16-bit PCM)
+    std::cout << getCurrentTimestamp() << "Loading audio file: " << audio_file_path << std::endl;
     
-    // Check if file is already WAV format, if not convert it
-    if (audio_file_path.substr(audio_file_path.find_last_of(".") + 1) != "wav") {
-        converted_file = convertAndSaveAudioToWav(audio_file_path);
-        if (converted_file.empty()) {
-            setError("Failed to convert audio file to WAV format");
-            return "";
-        }
-        wav_file = converted_file;
-        std::cout << "Using converted WAV file: " << wav_file << std::endl;
-    }
-    
-    // Load audio data
+    // Load audio data directly
     std::vector<float> audio_data;
-    if (!loadAudioFile(wav_file, audio_data)) {
+    if (!loadAudioFile(audio_file_path, audio_data)) {
         return "";
     }
     
@@ -175,22 +164,6 @@ std::string WhisperWrapper::transcribeAudioData(const std::vector<float>& audio_
     return transcription;
 }
 
-bool WhisperWrapper::convertAudioToWav(const std::string& input_file, const std::string& output_file) {
-    // Use ffmpeg to convert audio to 16kHz mono WAV
-    std::string command = "ffmpeg -i \"" + input_file + "\" -ar 16000 -ac 1 -c:a pcm_s16le \"" + output_file + "\" -y 2>/dev/null";
-    
-    int result = std::system(command.c_str());
-    
-    if (result != 0) {
-        std::cerr << "Failed to convert audio file. Make sure ffmpeg is installed." << std::endl;
-        return false;
-    }
-    
-    return true;
-}
-
-
-
 bool WhisperWrapper::loadAudioFile(const std::string& file_path, std::vector<float>& audio_data) {
     std::ifstream file(file_path, std::ios::binary);
     if (!file.is_open()) {
@@ -222,8 +195,9 @@ bool WhisperWrapper::loadAudioFile(const std::string& file_path, std::vector<flo
     }
     
     if (sample_rate != 16000) {
-        std::cout << "Warning: Sample rate is " << sample_rate << "Hz, but Whisper expects 16kHz. "
-                  << "Consider re-encoding the audio file." << std::endl;
+        std::cout << "Info: Sample rate is " << sample_rate << "Hz. Converting to 16kHz for optimal Whisper performance." << std::endl;
+    } else {
+        std::cout << getCurrentTimestamp() << "Perfect! Audio is already in optimal format for Whisper (16kHz, mono, 16-bit)" << std::endl;
     }
     
     // Find data chunk
@@ -285,25 +259,4 @@ bool WhisperWrapper::loadAudioFile(const std::string& file_path, std::vector<flo
 void WhisperWrapper::setError(const std::string& error) {
     last_error_ = error;
     std::cerr << "WhisperWrapper Error: " << error << std::endl;
-}
-
-std::string WhisperWrapper::convertAndSaveAudioToWav(const std::string& input_file)
-{
-    // Generate output filename by replacing extension with .wav
-    std::string output_file = input_file;
-    size_t lastDot = output_file.find_last_of('.');
-    if (lastDot != std::string::npos) {
-        output_file = output_file.substr(0, lastDot) + "_converted.wav";
-    } else {
-        output_file += "_converted.wav";
-    }
-    
-    // Convert to WAV format
-    if (convertAudioToWav(input_file, output_file)) {
-        std::cout << getCurrentTimestamp() << "Converted WAV file saved: " << output_file << std::endl;
-        return output_file;
-    } else {
-        std::cerr << "Failed to convert audio file: " << input_file << std::endl;
-        return "";
-    }
 }

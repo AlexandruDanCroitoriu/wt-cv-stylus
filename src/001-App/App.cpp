@@ -31,7 +31,6 @@ App::App(const Wt::WEnvironment &env)
     // wApp->require("https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4");
     // require("https://unpkg.com/vue@3/dist/vue.global.prod.js");
     wApp->require("https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js");
-    
     root()->addStyleClass("max-w-screen max-h-screen overflow-none font-body bg-surface text-on-surface");
 
 

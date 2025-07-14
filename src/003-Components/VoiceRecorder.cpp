@@ -23,7 +23,7 @@ VoiceRecorder::VoiceRecorder()
     is_enabled_(true),
     whisper_(std::make_unique<WhisperWrapper>())
 {
-    // setStyleClass("space-y-2 flex items-center border relative rounded-radius m-5");
+    // No external dependencies needed - using built-in WAV encoding
     
     js_signal_voice_recording_supported_.connect(this, [=](bool is_supported){ 
         std::cout << "Voice recording support status: " << (is_supported ? "Supported" : "Not Supported") << std::endl;
@@ -235,21 +235,106 @@ void VoiceRecorder::disable()
 void VoiceRecorder::setupJavaScriptRecorder()
 {
     // Initialize the JavaScript object for media recording
+    setJavaScriptMember("audioContext", "null");
     setJavaScriptMember("mediaRecorder", "null");
-    setJavaScriptMember("audioChunks", "[]");
+    setJavaScriptMember("recordedSamples", "[]");
     setJavaScriptMember("recordedBlob", "null");
     setJavaScriptMember("audioUrl", "null");
     setJavaScriptMember("isSupported", "false");
     setJavaScriptMember("audioElement", "null");
+    setJavaScriptMember("processorNode", "null");
+    setJavaScriptMember("sourceNode", "null");
+    setJavaScriptMember("mediaStream", "null");
     
-    // Initialize function - check if MediaRecorder is supported
+    // WAV encoder helper functions
+    setJavaScriptMember("encodeWAV", R"(
+        function(samples, sampleRate) {
+            var buffer = new ArrayBuffer(44 + samples.length * 2);
+            var view = new DataView(buffer);
+            
+            // WAV header
+            var writeString = function(offset, string) {
+                for (var i = 0; i < string.length; i++) {
+                    view.setUint8(offset + i, string.charCodeAt(i));
+                }
+            };
+            
+            writeString(0, 'RIFF');
+            view.setUint32(4, 36 + samples.length * 2, true);
+            writeString(8, 'WAVE');
+            writeString(12, 'fmt ');
+            view.setUint32(16, 16, true);
+            view.setUint16(20, 1, true); // PCM
+            view.setUint16(22, 1, true); // mono
+            view.setUint32(24, sampleRate, true);
+            view.setUint32(28, sampleRate * 2, true);
+            view.setUint16(32, 2, true);
+            view.setUint16(34, 16, true);
+            writeString(36, 'data');
+            view.setUint32(40, samples.length * 2, true);
+            
+            // Convert float samples to 16-bit PCM
+            var offset = 44;
+            for (var i = 0; i < samples.length; i++) {
+                var sample = Math.max(-1, Math.min(1, samples[i]));
+                view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7FFF, true);
+                offset += 2;
+            }
+            
+            return buffer;
+        }
+    )");
+    
+    // Resampling function to convert to 16kHz
+    setJavaScriptMember("resampleTo16kHz", R"(
+        function(audioBuffer) {
+            var originalSampleRate = audioBuffer.sampleRate;
+            var targetSampleRate = 16000;
+            var ratio = originalSampleRate / targetSampleRate;
+            var newLength = Math.round(audioBuffer.length / ratio);
+            var result = new Float32Array(newLength);
+            
+            // Get channel data (convert to mono if stereo)
+            var channelData;
+            if (audioBuffer.numberOfChannels === 1) {
+                channelData = audioBuffer.getChannelData(0);
+            } else {
+                // Convert stereo to mono by averaging channels
+                var left = audioBuffer.getChannelData(0);
+                var right = audioBuffer.getChannelData(1);
+                channelData = new Float32Array(audioBuffer.length);
+                for (var i = 0; i < audioBuffer.length; i++) {
+                    channelData[i] = (left[i] + right[i]) / 2;
+                }
+            }
+            
+            // Simple linear interpolation resampling
+            for (var i = 0; i < newLength; i++) {
+                var index = i * ratio;
+                var indexInt = Math.floor(index);
+                var indexFrac = index - indexInt;
+                
+                if (indexInt >= channelData.length - 1) {
+                    result[i] = channelData[channelData.length - 1];
+                } else {
+                    result[i] = channelData[indexInt] * (1 - indexFrac) + 
+                               channelData[indexInt + 1] * indexFrac;
+                }
+            }
+            
+            return result;
+        }
+    )");
+    
+    // Initialize function - check if Web Audio API is supported
     setJavaScriptMember("init", R"(
         function() {
             console.log('Initializing audio recording...');
-            console.log('MediaRecorder available:', 'MediaRecorder' in window);
+            console.log('AudioContext available:', 'AudioContext' in window || 'webkitAudioContext' in window);
             console.log('getUserMedia available:', navigator.mediaDevices && 'getUserMedia' in navigator.mediaDevices);
             
-            if ('MediaRecorder' in window && navigator.mediaDevices && 'getUserMedia' in navigator.mediaDevices) {
+            if (('AudioContext' in window || 'webkitAudioContext' in window) && 
+                navigator.mediaDevices && 'getUserMedia' in navigator.mediaDevices) {
                 this.isSupported = true;
                 console.log('Audio recording supported');
             } else {
@@ -287,85 +372,63 @@ void VoiceRecorder::setupJavaScriptRecorder()
                 return false;
             }
             
+            // Initialize audio context
+            try {
+                var AudioContext = window.AudioContext || window.webkitAudioContext;
+                self.audioContext = new AudioContext();
+                console.log('AudioContext created, sample rate:', self.audioContext.sampleRate);
+            } catch (e) {
+                console.error('Failed to create AudioContext:', e);
+                return false;
+            }
+            
             // Start audio recording
-            navigator.mediaDevices.getUserMedia({ audio: true })
-                .then(function(stream) {
-                    console.log('Microphone access granted');
-                    self.mediaRecorder = new MediaRecorder(stream);
-                    self.audioChunks = [];
+            navigator.mediaDevices.getUserMedia({ 
+                audio: {
+                    sampleRate: 44100,
+                    channelCount: 1,
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    autoGainControl: true
+                }
+            })
+            .then(function(stream) {
+                console.log('Microphone access granted');
+                self.mediaStream = stream;
+                self.recordedSamples = [];
+                
+                // Create audio nodes
+                self.sourceNode = self.audioContext.createMediaStreamSource(stream);
+                
+                // Create ScriptProcessorNode for capturing audio data
+                var bufferSize = 4096;
+                self.processorNode = self.audioContext.createScriptProcessor(bufferSize, 1, 1);
+                
+                self.processorNode.onaudioprocess = function(event) {
+                    var inputBuffer = event.inputBuffer;
+                    var inputData = inputBuffer.getChannelData(0);
                     
-                    self.mediaRecorder.ondataavailable = function(event) {
-                        console.log('Data available:', event.data.size, 'bytes');
-                        if (event.data.size > 0) {
-                            self.audioChunks.push(event.data);
-                        }
-                    };
-                    
-                    self.mediaRecorder.onstop = function() {
-                        console.log('MediaRecorder stopped, processing audio...');
-                        self.recordedBlob = new Blob(self.audioChunks, { type: 'audio/webm' });
-                        console.log('Created blob:', self.recordedBlob.size, 'bytes');
-                        self.audioUrl = URL.createObjectURL(self.recordedBlob);
-                        console.log('Created audio URL:', self.audioUrl);
-                        
-                        // Use setTimeout to ensure DOM is ready
-                        setTimeout(function() {
-                            self.audioElement = document.getElementById(')" + audio_player_->id() + R"(');
-                            console.log('Audio element:', self.audioElement);
-               
-                            if (self.audioElement) {
-                                self.audioElement.src = self.audioUrl;
-                                self.audioElement.load(); // Force reload the audio element
-                                console.log('Audio source set on WT audio widget:', self.audioUrl);
-                            } else {
-                                console.error('Audio element not found with ID: )" + audio_player_->id() + R"(');
-                            }
-                            
-                            // Set the recorded audio file to the file upload widget
-                            var fileUploadElement = document.getElementById(')" + file_upload_->id() + R"(');
-                            if (fileUploadElement) {
-                                var fileInput = fileUploadElement.querySelector('input[type="file"]');
-                                if (fileInput) {
-                                    // Create a File object from the blob
-                                    var audioFile = new File([self.recordedBlob], 'recorded_audio.webm', { 
-                                        type: 'audio/webm',
-                                        lastModified: Date.now()
-                                    });
-                                    
-                                    // Create a DataTransfer object to set the file
-                                    var dataTransfer = new DataTransfer();
-                                    dataTransfer.items.add(audioFile);
-                                    fileInput.files = dataTransfer.files;
-                                    
-                                    // Trigger the change event to notify WT
-                                    var changeEvent = new Event('change', { bubbles: true });
-                                    fileInput.dispatchEvent(changeEvent);
-                                    
-                                    console.log('Audio file set to file upload widget:', audioFile.name, audioFile.size, 'bytes');
-                                    )" + js_signal_audio_widget_has_media_.createCall({"true"}) + R"(
-                                
-                                } else {
-                                    console.error('File input element not found in:', fileUploadElement);
-                                    )" + js_signal_audio_widget_has_media_.createCall({"false"}) + R"(
-                                }
-                            } else {
-                                console.error('File upload element not found with ID: )" + file_upload_->id() + R"(');
-                            }
-                        }, 100);
-                        
-                        // Stop the stream
-                        stream.getTracks().forEach(track => track.stop());
-                    };
-                    
-                    self.mediaRecorder.start(100); // Record in 1-second chunks
-                    console.log('Audio recording started with timeslice');
-                    console.log('Status: Recording audio... Speak now');
-                })
-                .catch(function(error) {
-                    console.error('Error accessing microphone:', error);
-                    alert('Error Message: ' + error.message);
-                    return false;
-                });
+                    // Copy the audio data
+                    var samples = new Float32Array(inputData.length);
+                    for (var i = 0; i < inputData.length; i++) {
+                        samples[i] = inputData[i];
+                    }
+                    self.recordedSamples.push(samples);
+                };
+                
+                // Connect the audio nodes
+                self.sourceNode.connect(self.processorNode);
+                self.processorNode.connect(self.audioContext.destination);
+                
+                console.log('Audio recording started with Web Audio API');
+                console.log('Status: Recording audio... Speak now');
+                return true;
+            })
+            .catch(function(error) {
+                console.error('Error accessing microphone:', error);
+                alert('Error Message: ' + error.message);
+                return false;
+            });
                 
             return true;
         }
@@ -374,18 +437,124 @@ void VoiceRecorder::setupJavaScriptRecorder()
     // Stop recording function
     setJavaScriptMember("stop", R"(
         function() {
-            // Stop audio recording
-            if (this.mediaRecorder && this.mediaRecorder.state === 'recording') {
-                this.mediaRecorder.stop();
-                console.log('Audio recording stopped');
-                console.log('Status: Processing audio...');
-                return true;
+            var self = this;
+            
+            if (!self.audioContext || !self.mediaStream) {
+                console.log('No active recording to stop');
+                return false;
             }
-            return false;
+            
+            console.log('Stopping audio recording...');
+            
+            // Disconnect audio nodes
+            if (self.sourceNode) {
+                self.sourceNode.disconnect();
+                self.sourceNode = null;
+            }
+            if (self.processorNode) {
+                self.processorNode.disconnect();
+                self.processorNode = null;
+            }
+            
+            // Stop media stream
+            self.mediaStream.getTracks().forEach(track => track.stop());
+            self.mediaStream = null;
+            
+            // Process recorded audio data
+            if (self.recordedSamples.length === 0) {
+                console.log('No audio data recorded');
+                return false;
+            }
+            
+            console.log('Processing', self.recordedSamples.length, 'audio chunks...');
+            
+            // Concatenate all recorded samples
+            var totalLength = 0;
+            for (var i = 0; i < self.recordedSamples.length; i++) {
+                totalLength += self.recordedSamples[i].length;
+            }
+            
+            var concatenated = new Float32Array(totalLength);
+            var offset = 0;
+            for (var i = 0; i < self.recordedSamples.length; i++) {
+                concatenated.set(self.recordedSamples[i], offset);
+                offset += self.recordedSamples[i].length;
+            }
+            
+            console.log('Total samples recorded:', concatenated.length);
+            console.log('Original sample rate:', self.audioContext.sampleRate);
+            
+            // Create an audio buffer and resample to 16kHz
+            var audioBuffer = self.audioContext.createBuffer(1, concatenated.length, self.audioContext.sampleRate);
+            audioBuffer.getChannelData(0).set(concatenated);
+            
+            var resampledData = self.resampleTo16kHz(audioBuffer);
+            console.log('Resampled to 16kHz, samples:', resampledData.length);
+            console.log('Duration:', resampledData.length / 16000, 'seconds');
+            
+            // Encode as WAV
+            var wavBuffer = self.encodeWAV(resampledData, 16000);
+            self.recordedBlob = new Blob([wavBuffer], { type: 'audio/wav' });
+            console.log('Created WAV blob:', self.recordedBlob.size, 'bytes');
+            
+            self.audioUrl = URL.createObjectURL(self.recordedBlob);
+            console.log('Created audio URL:', self.audioUrl);
+            
+            // Update UI elements
+            setTimeout(function() {
+                self.audioElement = document.getElementById(')" + audio_player_->id() + R"(');
+                console.log('Audio element:', self.audioElement);
+   
+                if (self.audioElement) {
+                    self.audioElement.src = self.audioUrl;
+                    self.audioElement.load();
+                    console.log('Audio source set on WT audio widget:', self.audioUrl);
+                } else {
+                    console.error('Audio element not found with ID: )" + audio_player_->id() + R"(');
+                }
+                
+                // Set the recorded audio file to the file upload widget
+                var fileUploadElement = document.getElementById(')" + file_upload_->id() + R"(');
+                if (fileUploadElement) {
+                    var fileInput = fileUploadElement.querySelector('input[type="file"]');
+                    if (fileInput) {
+                        // Create a File object from the WAV blob
+                        var audioFile = new File([self.recordedBlob], 'recorded_audio_16khz_mono.wav', { 
+                            type: 'audio/wav',
+                            lastModified: Date.now()
+                        });
+                        
+                        // Create a DataTransfer object to set the file
+                        var dataTransfer = new DataTransfer();
+                        dataTransfer.items.add(audioFile);
+                        fileInput.files = dataTransfer.files;
+                        
+                        // Trigger the change event to notify WT
+                        var changeEvent = new Event('change', { bubbles: true });
+                        fileInput.dispatchEvent(changeEvent);
+                        
+                        console.log('16kHz WAV file set to upload widget:', audioFile.name, audioFile.size, 'bytes');
+                        )" + js_signal_audio_widget_has_media_.createCall({"true"}) + R"(
+                    
+                    } else {
+                        console.error('File input element not found in:', fileUploadElement);
+                        )" + js_signal_audio_widget_has_media_.createCall({"false"}) + R"(
+                    }
+                } else {
+                    console.error('File upload element not found with ID: )" + file_upload_->id() + R"(');
+                }
+            }, 100);
+            
+            // Close audio context
+            if (self.audioContext) {
+                self.audioContext.close();
+                self.audioContext = null;
+            }
+            
+            console.log('Audio recording stopped and processed');
+            return true;
         }
     )");
-
-   
 }
 
 void VoiceRecorder::initializeWhisper()
@@ -427,21 +596,7 @@ void VoiceRecorder::performTranscription()
         current_transcription_ = transcription;
         transcription_display_->setText(transcription);
         
-        // Check if a converted WAV file was created
-        std::string wav_file = current_audio_file_;
-        size_t lastDot = wav_file.find_last_of('.');
-        if (lastDot != std::string::npos) {
-            wav_file = wav_file.substr(0, lastDot) + "_converted.wav";
-        } else {
-            wav_file += "_converted.wav";
-        }
-        
-        if (std::filesystem::exists(wav_file)) {
-            status_text_->setText("Transcription complete (WAV file saved)");
-            std::cout << "Converted WAV file saved: " << wav_file << std::endl;
-        } else {
-            status_text_->setText("Transcription complete");
-        }
+        status_text_->setText("Transcription complete");
         
         // Emit signal for external handlers
         transcription_complete_.emit(transcription);
