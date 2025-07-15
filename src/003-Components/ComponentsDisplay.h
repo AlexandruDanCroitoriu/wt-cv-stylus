@@ -18,6 +18,9 @@ public:
     void createButtons();
     void createMonacoEditor();
     void createVoiceRecorder();
+    void createBigWorkWidget();
+    void createBroadcastExample();
+    void createCheckboxBroadcastExample();
 
 
 

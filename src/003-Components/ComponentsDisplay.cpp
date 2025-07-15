@@ -4,6 +4,9 @@
 #include "003-Components/Button.h"
 #include "003-Components/MonacoEditor.h"
 #include "003-Components/VoiceRecorder.h"
+#include "003-Components/BigWorkWidget.h"
+#include "101-Examples/BroadcastExample.h"
+#include "101-Examples/CheckboxBroadcastExample.h"
 
 #include <Wt/WApplication.h>
 #include <Wt/WTable.h>
@@ -19,6 +22,9 @@
 ComponentsDisplay::ComponentsDisplay()
 {
     setStyleClass("container h-[100%]");
+    createBigWorkWidget();
+    createBroadcastExample();
+    createCheckboxBroadcastExample();
     createVoiceRecorder();
     createMonacoEditor();
     createButtons();
@@ -127,8 +133,6 @@ editor->setEditorReadOnly(false); // Set the editor to read only mode</code></pr
     });
 
 }
-
-
 
 
 void ComponentsDisplay::createButtons()
@@ -262,5 +266,34 @@ void ComponentsDisplay::setCopyToClipboardAction(Wt::WInteractWidget  *widget, W
     widget->clicked().connect([=]() { 
         widget->doJavaScript("navigator.clipboard.writeText('"+text_start+combo_box->itemText(selected_size_).toUTF8()+text_end+"');"); 
     });
+}
+
+void ComponentsDisplay::createBigWorkWidget()
+{
+    auto wrapper = addWidget(std::make_unique<Wt::WContainerWidget>());
+    wrapper->addStyleClass("mb-4");
+    
+    auto title = wrapper->addWidget(std::make_unique<Wt::WText>("Server Push & Background Processing Demo"));
+    title->addStyleClass("text-xl font-bold mb-2 text-on-surface-strong block");
+    
+    auto description = wrapper->addWidget(std::make_unique<Wt::WText>(
+        "Demonstrates real-time UI updates from background threads using Wt's server push functionality."));
+    description->addStyleClass("text-sm text-on-surface mb-4 block");
+    
+    wrapper->addNew<BigWorkWidget>();
+}
+
+void ComponentsDisplay::createBroadcastExample()
+{
+    auto wrapper = addWidget(std::make_unique<Wt::WContainerWidget>());
+    wrapper->addStyleClass("mb-4");
+    wrapper->addNew<BroadcastExample>();
+}
+
+void ComponentsDisplay::createCheckboxBroadcastExample()
+{
+    auto wrapper = addWidget(std::make_unique<Wt::WContainerWidget>());
+    wrapper->addStyleClass("mb-4");
+    wrapper->addNew<CheckboxBroadcastExample>();
 }
 
