@@ -22,9 +22,9 @@
 ComponentsDisplay::ComponentsDisplay()
 {
     setStyleClass("container h-[100%]");
-    createBigWorkWidget();
+    // createBigWorkWidget();
     // createBroadcastExample();
-    createCheckboxBroadcastExample();
+    // createCheckboxBroadcastExample();
     createVoiceRecorder();
     createMonacoEditor();
     createButtons();
