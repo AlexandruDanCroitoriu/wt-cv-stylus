@@ -23,7 +23,7 @@ ComponentsDisplay::ComponentsDisplay()
 {
     setStyleClass("container h-[100%]");
     createBigWorkWidget();
-    createBroadcastExample();
+    // createBroadcastExample();
     createCheckboxBroadcastExample();
     createVoiceRecorder();
     createMonacoEditor();

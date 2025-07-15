@@ -1,6 +1,6 @@
 #include "003-Components/VoiceRecorder.h"
 #include "003-Components/Button.h"
-#include "003-Components/WhisperWrapper.h"
+#include "000-Server/Whisper/WhisperAi.h"
 #include <Wt/WApplication.h>
 #include <Wt/WJavaScript.h>
 #include <Wt/WTemplate.h>
@@ -20,8 +20,7 @@ VoiceRecorder::VoiceRecorder()
     js_signal_audio_widget_has_media_(this, "audioWidgetHasMedia"),
     is_audio_supported_(false),
     is_microphone_available_(false),
-    is_enabled_(true),
-    whisper_(std::make_unique<WhisperWrapper>())
+    is_enabled_(true)
 {
     // No external dependencies needed - using built-in WAV encoding
     
@@ -71,7 +70,7 @@ VoiceRecorder::VoiceRecorder()
     doJavaScript("setTimeout(function() { if (" + jsRef() + ") { " + jsRef() + ".init(); } }, 200);");
 }
 
-VoiceRecorder::~VoiceRecorder() = default;
+
 
 void VoiceRecorder::setupUI()
 {
@@ -182,7 +181,8 @@ void VoiceRecorder::onFileUploaded()
                 std::cout << "Audio file saved: " << permanentPath << std::endl;
                 // Trigger transcription after upload
                 transcription_display_->setText("Transcribing audio...");
-                current_transcription_ = whisper_->transcribeFile(current_audio_file_);
+                auto& whisper = WhisperAi::getInstance();
+                current_transcription_ = whisper.transcribeFile(current_audio_file_);
                 transcription_display_->setText(current_transcription_);
                 transcription_complete_.emit(current_transcription_);
             } else {
@@ -559,18 +559,20 @@ void VoiceRecorder::setupJavaScriptRecorder()
 
 void VoiceRecorder::initializeWhisper()
 {
-    if (whisper_->initialize()) {
-        std::cout << "Whisper initialized with ggml-base.en.bin model" << std::endl;
+    auto& whisper = WhisperAi::getInstance();
+    if (whisper.initialize()) {
+        std::cout << "Whisper singleton initialized with ggml-base.en.bin model" << std::endl;
         recording_info_->addNew<Wt::WText>("Speech-to-text ready ✓")->setStyleClass("text-green-500");
     } else {
-        std::cout << "Failed to initialize Whisper: " << whisper_->getLastError() << std::endl;
+        std::cout << "Failed to initialize Whisper: " << whisper.getLastError() << std::endl;
         recording_info_->addNew<Wt::WText>("Whisper initialization failed. Transcription disabled.")->setStyleClass("text-red-500");
     }
 }
 
 void VoiceRecorder::transcribeCurrentAudio()
 {
-    if (!whisper_->isInitialized()) {
+    auto& whisper = WhisperAi::getInstance();
+    if (!whisper.isInitialized()) {
         status_text_->setText("Whisper not initialized");
         return;
     }
@@ -590,7 +592,8 @@ void VoiceRecorder::transcribeCurrentAudio()
 
 void VoiceRecorder::performTranscription()
 {
-    std::string transcription = whisper_->transcribeFile(current_audio_file_);
+    auto& whisper = WhisperAi::getInstance();
+    std::string transcription = whisper.transcribeFile(current_audio_file_);
     
     if (!transcription.empty()) {
         current_transcription_ = transcription;
@@ -603,8 +606,8 @@ void VoiceRecorder::performTranscription()
         
         std::cout << "Transcription: " << transcription << std::endl;
     } else {
-        status_text_->setText("Transcription failed: " + whisper_->getLastError());
-        std::cout << "Transcription failed: " << whisper_->getLastError() << std::endl;
+        status_text_->setText("Transcription failed: " + whisper.getLastError());
+        std::cout << "Transcription failed: " << whisper.getLastError() << std::endl;
     }
     
     transcribe_btn_->enable();

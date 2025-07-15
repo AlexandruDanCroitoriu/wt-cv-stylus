@@ -51,7 +51,7 @@ set(SOURCES
     ${SOURCE_DIR}/003-Components/Button.cpp
     ${SOURCE_DIR}/003-Components/MonacoEditor.cpp
     ${SOURCE_DIR}/003-Components/VoiceRecorder.cpp
-    ${SOURCE_DIR}/003-Components/WhisperWrapper.cpp
+    ${SOURCE_DIR}/000-Server/Whisper/WhisperAi.cpp
     ${SOURCE_DIR}/003-Components/BigWorkWidget.cpp
     
     ${SOURCE_DIR}/004-Dbo/Session.cpp

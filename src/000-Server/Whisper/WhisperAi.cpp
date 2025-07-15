@@ -1,4 +1,4 @@
-#include "WhisperWrapper.h"
+#include "WhisperAi.h"
 #include "whisper.h"
 #include <iostream>
 #include <fstream>
@@ -9,6 +9,7 @@
 #include <chrono>
 #include <iomanip>
 #include <sstream>
+#include <mutex>
 
 // Helper function to get current timestamp
 std::string getCurrentTimestamp() {
@@ -23,34 +24,43 @@ std::string getCurrentTimestamp() {
     return ss.str();
 }
 
-WhisperWrapper::WhisperWrapper() 
-    : context_(nullptr) {
+// Singleton implementation
+WhisperAi& WhisperAi::getInstance() {
+    static WhisperAi instance;
+    return instance;
 }
 
-WhisperWrapper::~WhisperWrapper() {
+WhisperAi::WhisperAi() 
+    : context_(nullptr) {
+    std::cout << getCurrentTimestamp() << "WhisperAi singleton instance created" << std::endl;
+}
+
+WhisperAi::~WhisperAi() {
+    std::lock_guard<std::mutex> lock(mutex_);
     if (context_) {
         whisper_free(context_);
         context_ = nullptr;
+        std::cout << getCurrentTimestamp() << "WhisperAi singleton destroyed and context freed" << std::endl;
     }
 }
 
-bool WhisperWrapper::initialize() {
-    // Fixed model path for ggml-base.en.bin
-    std::vector<std::string> models_dirs = {
-        "models/",           // When running from project root
-        "../../models/",     // When running from build/debug
-        "../models/",        // When running from build
-        "./models/"          // Current directory
-    };
+bool WhisperAi::initialize() {
+    std::lock_guard<std::mutex> lock(mutex_);
     
+    // Check if already initialized
+    if (context_ != nullptr) {
+        std::cout << getCurrentTimestamp() << "Whisper already initialized (singleton), reusing existing context" << std::endl;
+        return true;
+    }
+    
+    std::cout << getCurrentTimestamp() << "Initializing Whisper singleton..." << std::endl;
+    
+
     std::string model_path;
-    for (const auto& models_dir : models_dirs) {
-        std::string full_path = models_dir + "ggml-base.en.bin";
-        if (std::ifstream(full_path).good()) {
-            model_path = full_path;
-            std::cout << "Found Whisper model: " << full_path << std::endl;
-            break;
-        }
+    std::string full_path = "../../models/ggml-base.en.bin";
+    if (std::ifstream(full_path).good()) {
+        model_path = full_path;
+        std::cout << getCurrentTimestamp() << "Found Whisper model: " << full_path << std::endl;
     }
     
     if (model_path.empty()) {
@@ -70,14 +80,16 @@ bool WhisperWrapper::initialize() {
         return false;
     }
     
-    std::cout << "Whisper initialized successfully with model: " << model_path << std::endl;
-    std::cout << "Available threads: " << std::thread::hardware_concurrency() << std::endl;
+    std::cout << getCurrentTimestamp() << "Whisper singleton initialized successfully with model: " << model_path << std::endl;
+    std::cout << getCurrentTimestamp() << "Available threads: " << std::thread::hardware_concurrency() << std::endl;
     
     return true;
 }
 
-std::string WhisperWrapper::transcribeFile(const std::string& audio_file_path) {
-    if (!isInitialized()) {
+std::string WhisperAi::transcribeFile(const std::string& audio_file_path) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    
+    if (context_ == nullptr) {
         setError("Whisper not initialized");
         return "";
     }
@@ -91,11 +103,18 @@ std::string WhisperWrapper::transcribeFile(const std::string& audio_file_path) {
         return "";
     }
     
-    return transcribeAudioData(audio_data);
+    // Call internal method that doesn't acquire mutex
+    return transcribeAudioDataInternal(audio_data);
 }
 
-std::string WhisperWrapper::transcribeAudioData(const std::vector<float>& audio_data) {
-    if (!isInitialized()) {
+std::string WhisperAi::transcribeAudioData(const std::vector<float>& audio_data) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return transcribeAudioDataInternal(audio_data);
+}
+
+std::string WhisperAi::transcribeAudioDataInternal(const std::vector<float>& audio_data) {
+    // Assumes mutex is already locked by caller
+    if (context_ == nullptr) {
         setError("Whisper not initialized");
         return "";
     }
@@ -164,7 +183,7 @@ std::string WhisperWrapper::transcribeAudioData(const std::vector<float>& audio_
     return transcription;
 }
 
-bool WhisperWrapper::loadAudioFile(const std::string& file_path, std::vector<float>& audio_data) {
+bool WhisperAi::loadAudioFile(const std::string& file_path, std::vector<float>& audio_data) {
     std::ifstream file(file_path, std::ios::binary);
     if (!file.is_open()) {
         setError("Cannot open audio file: " + file_path);
@@ -256,7 +275,17 @@ bool WhisperWrapper::loadAudioFile(const std::string& file_path, std::vector<flo
     return true;
 }
 
-void WhisperWrapper::setError(const std::string& error) {
+void WhisperAi::setError(const std::string& error) {
     last_error_ = error;
-    std::cerr << "WhisperWrapper Error: " << error << std::endl;
+    std::cerr << "WhisperAi Error: " << error << std::endl;
+}
+
+bool WhisperAi::isInitialized() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return context_ != nullptr;
+}
+
+std::string WhisperAi::getLastError() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return last_error_;
 }

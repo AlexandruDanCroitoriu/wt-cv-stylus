@@ -58,7 +58,7 @@
       </user-agents>
       <UA-Compatible></UA-Compatible>
       <progressive-bootstrap>false</progressive-bootstrap>
-      <delay-load-at-boot>true</delay-load-at-boot>
+      <delay-load-at-boot>false</delay-load-at-boot>
       <session-id-cookie>false</session-id-cookie>
       <cookie-checks>true</cookie-checks>
       <head-matter>

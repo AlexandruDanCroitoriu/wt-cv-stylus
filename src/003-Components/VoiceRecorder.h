@@ -13,14 +13,14 @@
 #include <memory>
 
 class Button; // Forward declaration
-class WhisperWrapper; // Forward declaration
+class WhisperAi; // Forward declaration
 
 
 class VoiceRecorder : public Wt::WContainerWidget
 {
 public:
     VoiceRecorder();
-    ~VoiceRecorder(); // Explicit destructor needed for std::unique_ptr with forward declaration
+    ~VoiceRecorder() = default; // No longer need explicit destructor
 
     void disable();
     void enable();
@@ -66,8 +66,7 @@ private:
     bool is_microphone_available_;
     bool is_enabled_;
     
-    // Whisper integration
-    std::unique_ptr<WhisperWrapper> whisper_;
+    // Whisper integration - use singleton reference
     std::string current_transcription_;
     std::string current_audio_file_;
     Wt::Signal<std::string> transcription_complete_;

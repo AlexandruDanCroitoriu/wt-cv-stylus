@@ -2,6 +2,7 @@
 
 #include "000-Server/Server.h"
 #include "001-App/App.h"
+#include "000-Server/Whisper/WhisperAi.h" // Include for singleton initialization
 #include <Wt/WSslInfo.h>
 #include <csignal>
 #include <iostream>
@@ -30,12 +31,21 @@ Server::Server(int argc, char **argv)
     setServerConfiguration(argc_, argv_, WTHTTP_CONFIGURATION);
     configureAuth();
     
-    std::cout << "Application arguments:" << std::endl;
-    for (int i = 0; i < argc; ++i) {
-        std::cout << "argv[" << i << "]: " << argv[i] << std::endl;
+    // Initialize Whisper singleton early to load model once
+    std::cout << "Initializing Whisper singleton..." << std::endl;
+    auto& whisper = WhisperAi::getInstance();
+    if (whisper.initialize()) {
+        std::cout << "Whisper singleton initialized successfully" << std::endl;
+    } else {
+        std::cout << "Failed to initialize Whisper singleton: " << whisper.getLastError() << std::endl;
     }
-    std::cout << "\n\n WTHTTP_CONFIGURATION: " << WTHTTP_CONFIGURATION << "\n\n";
-    std::cout << "\n\n WT_CONFIG_XML: " << WT_CONFIG_XML << "\n\n";
+    
+    // std::cout << "Application arguments:" << std::endl;
+    // for (int i = 0; i < argc; ++i) {
+    //     std::cout << "argv[" << i << "]: " << argv[i] << std::endl;
+    // }
+    // std::cout << "\n\n WTHTTP_CONFIGURATION: " << WTHTTP_CONFIGURATION << "\n\n";
+    // std::cout << "\n\n WT_CONFIG_XML: " << WT_CONFIG_XML << "\n\n";
     addEntryPoint(Wt::EntryPointType::Application, [](const Wt::WEnvironment& env) {
         {
             // std::cout << "\n\n";

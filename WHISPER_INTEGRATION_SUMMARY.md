@@ -6,8 +6,8 @@ This document summarizes the integration of Whisper.cpp for speech-to-text funct
 ## Files Added/Modified
 
 ### New Files
-- `src/003-Components/WhisperWrapper.h` - C++ wrapper for Whisper.cpp
-- `src/003-Components/WhisperWrapper.cpp` - Implementation of Whisper wrapper
+- `src/000-Server/Whisper/WhisperAi.h` - C++ wrapper for Whisper.cpp
+- `src/000-Server/Whisper/WhisperAi.cpp` - Implementation of Whisper wrapper
 - `download_models.sh` - Script to download Whisper models
 - `models/MODELS_README.md` - Documentation for Whisper models
 
@@ -26,7 +26,7 @@ This document summarizes the integration of Whisper.cpp for speech-to-text funct
 5. **Audio File Management** - Saves uploaded files to `audio-files/` directory with timestamps
 6. **Format Conversion** - Automatically converts and saves WAV files for processing
 
-### WhisperWrapper Class
+### WhisperAi Class
 1. **Model Management** - Automatic model detection and loading
 2. **Audio Processing** - Convert various formats to WAV 16kHz mono
 3. **Language Support** - 99 languages including auto-detection
