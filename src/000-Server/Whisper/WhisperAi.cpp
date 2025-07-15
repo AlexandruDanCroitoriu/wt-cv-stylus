@@ -10,6 +10,9 @@
 #include <iomanip>
 #include <sstream>
 #include <mutex>
+#include <future>
+#include <queue>
+#include <atomic>
 
 // Helper function to get current timestamp
 std::string getCurrentTimestamp() {
@@ -31,12 +34,18 @@ WhisperAi& WhisperAi::getInstance() {
 }
 
 WhisperAi::WhisperAi() 
-    : context_(nullptr) {
+    : context_(nullptr), shutdown_(false), worker_running_(false) {
     std::cout << getCurrentTimestamp() << "WhisperAi singleton instance created" << std::endl;
 }
 
 WhisperAi::~WhisperAi() {
-    std::lock_guard<std::mutex> lock(mutex_);
+    std::cout << getCurrentTimestamp() << "WhisperAi singleton destructor called" << std::endl;
+    
+    // Stop worker thread first
+    stopWorkerThread();
+    
+    // Clean up context
+    std::lock_guard<std::mutex> lock(context_mutex_);
     if (context_) {
         whisper_free(context_);
         context_ = nullptr;
@@ -45,7 +54,7 @@ WhisperAi::~WhisperAi() {
 }
 
 bool WhisperAi::initialize() {
-    std::lock_guard<std::mutex> lock(mutex_);
+    std::lock_guard<std::mutex> lock(context_mutex_);
     
     // Check if already initialized
     if (context_ != nullptr) {
@@ -83,11 +92,14 @@ bool WhisperAi::initialize() {
     std::cout << getCurrentTimestamp() << "Whisper singleton initialized successfully with model: " << model_path << std::endl;
     std::cout << getCurrentTimestamp() << "Available threads: " << std::thread::hardware_concurrency() << std::endl;
     
+    // Start the worker thread
+    startWorkerThread();
+    
     return true;
 }
 
 std::string WhisperAi::transcribeFile(const std::string& audio_file_path) {
-    std::lock_guard<std::mutex> lock(mutex_);
+    std::lock_guard<std::mutex> lock(context_mutex_);
     
     if (context_ == nullptr) {
         setError("Whisper not initialized");
@@ -108,7 +120,7 @@ std::string WhisperAi::transcribeFile(const std::string& audio_file_path) {
 }
 
 std::string WhisperAi::transcribeAudioData(const std::vector<float>& audio_data) {
-    std::lock_guard<std::mutex> lock(mutex_);
+    std::lock_guard<std::mutex> lock(context_mutex_);
     return transcribeAudioDataInternal(audio_data);
 }
 
@@ -281,11 +293,163 @@ void WhisperAi::setError(const std::string& error) {
 }
 
 bool WhisperAi::isInitialized() const {
-    std::lock_guard<std::mutex> lock(mutex_);
+    std::lock_guard<std::mutex> lock(context_mutex_);
     return context_ != nullptr;
 }
 
 std::string WhisperAi::getLastError() const {
-    std::lock_guard<std::mutex> lock(mutex_);
+    std::lock_guard<std::mutex> lock(context_mutex_);
     return last_error_;
+}
+
+// New async methods implementation
+std::future<std::string> WhisperAi::transcribeFileAsync(const std::string& audio_file_path) {
+    TranscriptionTask task(TranscriptionTask::FILE, audio_file_path);
+    auto future = task.result_promise.get_future();
+    
+    {
+        std::lock_guard<std::mutex> lock(queue_mutex_);
+        task_queue_.push(std::move(task));
+        std::cout << getCurrentTimestamp() << "Queued transcription task for file: " << audio_file_path 
+                  << " (queue size: " << task_queue_.size() << ")" << std::endl;
+    }
+    queue_cv_.notify_one();
+    
+    return future;
+}
+
+std::future<std::string> WhisperAi::transcribeAudioDataAsync(std::vector<float> audio_data) {
+    TranscriptionTask task(TranscriptionTask::AUDIO_DATA, std::move(audio_data));
+    auto future = task.result_promise.get_future();
+    
+    {
+        std::lock_guard<std::mutex> lock(queue_mutex_);
+        task_queue_.push(std::move(task));
+        std::cout << getCurrentTimestamp() << "Queued transcription task for audio data"
+                  << " (queue size: " << task_queue_.size() << ")" << std::endl;
+    }
+    queue_cv_.notify_one();
+    
+    return future;
+}
+
+size_t WhisperAi::getQueueSize() const {
+    std::lock_guard<std::mutex> lock(queue_mutex_);
+    return task_queue_.size();
+}
+
+// Worker thread management
+void WhisperAi::startWorkerThread() {
+    if (worker_running_.exchange(true)) {
+        std::cout << getCurrentTimestamp() << "Worker thread already running" << std::endl;
+        return;
+    }
+    
+    shutdown_ = false;
+    worker_thread_ = std::thread(&WhisperAi::workerLoop, this);
+    std::cout << getCurrentTimestamp() << "Worker thread started" << std::endl;
+}
+
+void WhisperAi::stopWorkerThread() {
+    if (!worker_running_.exchange(false)) {
+        return; // Already stopped
+    }
+    
+    std::cout << getCurrentTimestamp() << "Stopping worker thread..." << std::endl;
+    
+    // Signal shutdown
+    shutdown_ = true;
+    queue_cv_.notify_all();
+    
+    // Wait for thread to finish
+    if (worker_thread_.joinable()) {
+        worker_thread_.join();
+    }
+    
+    // Clear any remaining tasks
+    std::lock_guard<std::mutex> lock(queue_mutex_);
+    while (!task_queue_.empty()) {
+        auto& task = task_queue_.front();
+        task.result_promise.set_value(""); // Set empty result for cancelled tasks
+        task_queue_.pop();
+    }
+    
+    std::cout << getCurrentTimestamp() << "Worker thread stopped" << std::endl;
+}
+
+void WhisperAi::workerLoop() {
+    std::cout << getCurrentTimestamp() << "Worker thread loop started" << std::endl;
+    
+    while (!shutdown_) {
+        TranscriptionTask task(TranscriptionTask::FILE, ""); // Temporary initialization
+        
+        // Wait for work or shutdown signal
+        {
+            std::unique_lock<std::mutex> lock(queue_mutex_);
+            queue_cv_.wait(lock, [this] { return !task_queue_.empty() || shutdown_; });
+            
+            if (shutdown_) {
+                break;
+            }
+            
+            if (!task_queue_.empty()) {
+                task = std::move(task_queue_.front());
+                task_queue_.pop();
+            } else {
+                continue; // Spurious wakeup
+            }
+        }
+        
+        // Process the task
+        try {
+            std::cout << getCurrentTimestamp() << "Processing transcription task: " << task.task_id << std::endl;
+            
+            std::string result = processTask(task);
+            task.result_promise.set_value(result);
+            
+            std::cout << getCurrentTimestamp() << "Completed transcription task: " << task.task_id << std::endl;
+        } catch (const std::exception& e) {
+            std::cout << getCurrentTimestamp() << "Error processing task: " << e.what() << std::endl;
+            task.result_promise.set_value(""); // Set empty result on error
+        }
+    }
+    
+    std::cout << getCurrentTimestamp() << "Worker thread loop ended" << std::endl;
+}
+
+std::string WhisperAi::processTask(const TranscriptionTask& task) {
+    switch (task.type) {
+        case TranscriptionTask::FILE: {
+            // Load audio file first
+            std::vector<float> audio_data;
+            if (!loadAudioFile(task.file_path, audio_data)) {
+                return ""; // Error already set by loadAudioFile
+            }
+            
+            // Process with context lock
+            std::lock_guard<std::mutex> lock(context_mutex_);
+            return transcribeAudioDataInternal(audio_data);
+        }
+        
+        case TranscriptionTask::AUDIO_DATA: {
+            // Process with context lock
+            std::lock_guard<std::mutex> lock(context_mutex_);
+            return transcribeAudioDataInternal(task.audio_data);
+        }
+        
+        default:
+            setError("Unknown task type");
+            return "";
+    }
+}
+
+// Static method for generating task IDs
+std::string WhisperAi::TranscriptionTask::generateTaskId() {
+    static std::atomic<int> counter{0};
+    auto now = std::chrono::system_clock::now();
+    auto time_t = std::chrono::system_clock::to_time_t(now);
+    
+    std::stringstream ss;
+    ss << "task_" << time_t << "_" << counter.fetch_add(1);
+    return ss.str();
 }

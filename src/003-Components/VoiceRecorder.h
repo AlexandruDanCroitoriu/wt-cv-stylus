@@ -11,6 +11,7 @@
 #include <Wt/WFileUpload.h>
 #include <Wt/WSignal.h>
 #include <memory>
+#include <thread>
 
 class Button; // Forward declaration
 class WhisperAi; // Forward declaration
@@ -20,7 +21,7 @@ class VoiceRecorder : public Wt::WContainerWidget
 {
 public:
     VoiceRecorder();
-    ~VoiceRecorder() = default; // No longer need explicit destructor
+    ~VoiceRecorder(); // Need explicit destructor to handle thread cleanup
 
     void disable();
     void enable();
@@ -41,7 +42,7 @@ private:
     void onFileTooLarge();
     void uploadFile();
     void initializeWhisper();
-    void performTranscription();
+    void performTranscriptionInBackground(Wt::WApplication* app);
     
     // Audio file management
     std::string createAudioFilesDirectory();
@@ -70,5 +71,8 @@ private:
     std::string current_transcription_;
     std::string current_audio_file_;
     Wt::Signal<std::string> transcription_complete_;
+    
+    // Threading support for non-blocking transcription
+    std::thread transcription_thread_;
 
 };

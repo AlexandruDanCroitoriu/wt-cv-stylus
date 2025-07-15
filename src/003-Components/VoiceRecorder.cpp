@@ -70,7 +70,14 @@ VoiceRecorder::VoiceRecorder()
     doJavaScript("setTimeout(function() { if (" + jsRef() + ") { " + jsRef() + ".init(); } }, 200);");
 }
 
-
+VoiceRecorder::~VoiceRecorder()
+{
+    // Clean up background thread if it's still running
+    if (transcription_thread_.get_id() != std::this_thread::get_id() &&
+        transcription_thread_.joinable()) {
+        transcription_thread_.join();
+    }
+}
 
 void VoiceRecorder::setupUI()
 {
@@ -179,12 +186,9 @@ void VoiceRecorder::onFileUploaded()
                 transcribe_btn_->enable();
                 status_text_->setText("Audio file saved: " + uniqueFileName);
                 std::cout << "Audio file saved: " << permanentPath << std::endl;
-                // Trigger transcription after upload
-                transcription_display_->setText("Transcribing audio...");
-                auto& whisper = WhisperAi::getInstance();
-                current_transcription_ = whisper.transcribeFile(current_audio_file_);
-                transcription_display_->setText(current_transcription_);
-                transcription_complete_.emit(current_transcription_);
+                
+                // Start automatic transcription in background
+                // transcribeCurrentAudio();
             } else {
                 status_text_->setText("Error: Failed to save audio file");
                 std::cout << "Failed to save audio file to: " << permanentPath << std::endl;
@@ -584,33 +588,91 @@ void VoiceRecorder::transcribeCurrentAudio()
     
     status_text_->setText("Transcribing audio...");
     transcribe_btn_->disable();
+    transcription_display_->setText("⏳ Transcribing audio, please wait...");
     
-    // Perform transcription in a separate thread to avoid blocking UI
-    // For now, doing it synchronously for simplicity
-    performTranscription();
-}
-
-void VoiceRecorder::performTranscription()
-{
-    auto& whisper = WhisperAi::getInstance();
-    std::string transcription = whisper.transcribeFile(current_audio_file_);
+    // Get the application instance to enable server push
+    Wt::WApplication* app = Wt::WApplication::instance();
+    app->enableUpdates(true);
     
-    if (!transcription.empty()) {
-        current_transcription_ = transcription;
-        transcription_display_->setText(transcription);
-        
-        status_text_->setText("Transcription complete");
-        
-        // Emit signal for external handlers
-        transcription_complete_.emit(transcription);
-        
-        std::cout << "Transcription: " << transcription << std::endl;
-    } else {
-        status_text_->setText("Transcription failed: " + whisper.getLastError());
-        std::cout << "Transcription failed: " << whisper.getLastError() << std::endl;
+    // Clean up previous thread if it exists
+    if (transcription_thread_.joinable()) {
+        transcription_thread_.join();
     }
     
-    transcribe_btn_->enable();
+    // Start transcription in background thread
+    transcription_thread_ = std::thread(
+        std::bind(&VoiceRecorder::performTranscriptionInBackground, this, app)
+    );
+}
+
+void VoiceRecorder::performTranscriptionInBackground(Wt::WApplication* app)
+{
+    std::string transcription_result;
+    std::string error_message;
+    size_t queue_size = 0;
+    
+    try {
+        auto& whisper = WhisperAi::getInstance();
+        
+        // Show queue position if there are other tasks
+        queue_size = whisper.getQueueSize();
+        if (queue_size > 0) {
+            // Update UI with queue information
+            Wt::WApplication::UpdateLock uiLock(app);
+            if (uiLock) {
+                status_text_->setText("Queued for transcription (position: " + std::to_string(queue_size + 1) + ")");
+                app->triggerUpdate();
+            }
+        }
+        
+        // Use the new async API - this will queue the task and return a future
+        auto future = whisper.transcribeFileAsync(current_audio_file_);
+        
+        // Wait for the result (this blocks this background thread but not the UI)
+        transcription_result = future.get();
+        
+        if (transcription_result.empty()) {
+            error_message = whisper.getLastError();
+        }
+    } catch (const std::exception& e) {
+        error_message = "Exception during transcription: " + std::string(e.what());
+    }
+    
+    // Update the UI thread-safely using the application update lock
+    Wt::WApplication::UpdateLock uiLock(app);
+    if (uiLock) {
+        if (!transcription_result.empty()) {
+            // Success
+            current_transcription_ = transcription_result;
+            transcription_display_->setText(transcription_result);
+            status_text_->setText("Transcription complete ✓");
+            
+            // Emit signal for external handlers
+            transcription_complete_.emit(transcription_result);
+            
+            std::cout << "Transcription completed: " << transcription_result << std::endl;
+        } else {
+            // Error
+            std::string error_text = "Transcription failed";
+            if (!error_message.empty()) {
+                error_text += ": " + error_message;
+            }
+            
+            transcription_display_->setText("❌ " + error_text);
+            status_text_->setText(error_text);
+            
+            std::cout << "Transcription failed: " << error_message << std::endl;
+        }
+        
+        // Re-enable the transcribe button
+        transcribe_btn_->enable();
+        
+        // Trigger UI update
+        app->triggerUpdate();
+        
+        // Disable server push when done
+        app->enableUpdates(false);
+    }
 }
 
 std::string VoiceRecorder::getTranscription() const
