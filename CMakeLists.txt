@@ -68,7 +68,7 @@ set(SOURCES
     ${SOURCE_DIR}/008-AboutMe/AboutMe.cpp
 
 
-    ${SOURCE_DIR}/101-StarWarsApi/StarWarsApi.cpp
+    ${SOURCE_DIR}/010-StarWarsApi/StarWarsApi.cpp
 
 )
 

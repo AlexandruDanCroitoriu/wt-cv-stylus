@@ -7,7 +7,7 @@
 
 #include "003-Components/ComponentsDisplay.h"
 #include "008-AboutMe/AboutMe.h"
-#include "101-StarWarsApi/StarWarsApi.h"
+#include "010-StarWarsApi/StarWarsApi.h"
 
 #include <Wt/WStackedWidget.h>
 #include <Wt/WPushButton.h>
