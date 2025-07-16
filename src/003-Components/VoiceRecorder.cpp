@@ -30,7 +30,7 @@ VoiceRecorder::VoiceRecorder()
         std::cout << "Voice recording support status: " << (is_supported ? "Supported" : "Not Supported") << std::endl;
         is_audio_supported_ = is_supported; 
             if (is_supported) {
-                recording_info_->addNew<Wt::WText>("Audio recording is supported in your browser.")->setStyleClass("text-green-500");
+                recording_info_->addNew<Wt::WText>("✓ Browser supports audio recording")->setStyleClass("text-green-500");
                 enable();
             }else {
                 Wt::WString temp = R"(
@@ -47,10 +47,10 @@ VoiceRecorder::VoiceRecorder()
         std::cout << "Microphone availability status: " << (is_available ? "Available" : "Not Available") << std::endl;
         is_microphone_available_ = is_available;
         if(is_available) {
-            recording_info_->addNew<Wt::WText>("Microphone is available")->setStyleClass("text-green-500");
+            recording_info_->addNew<Wt::WText>("✓ Microphone is available")->setStyleClass("text-green-500");
             enable();
         } else {
-            recording_info_->addNew<Wt::WText>("No microphone detected")->setStyleClass("text-red-500");
+            recording_info_->addNew<Wt::WText>("𐄂 No microphone detected")->setStyleClass("text-red-500");
 
             disable();
         }
@@ -59,9 +59,8 @@ VoiceRecorder::VoiceRecorder()
         std::cout << "Audio widget media status: " << (has_media ? "Has Media" : "No Media") << std::endl;
         if (has_media) {
             uploadFile();
-            transcribe_btn_->enable();
-        } else {
-            transcribe_btn_->disable();
+            // Start automatic transcription after upload
+            transcribeCurrentAudio();
         }
     });
 
@@ -117,15 +116,7 @@ void VoiceRecorder::setupUI()
     audio_player_->setStyleClass("grow w-full p-2");
     audio_player_->setAlternativeContent(std::make_unique<Wt::WText>("You have no HTML5 Audio!"));
 
-    // Upload button
-    upload_btn_ = widget_wrapper->addNew<Button>(std::string(Wt::WString::tr("app:download-svg").toUTF8()), "m-1.5 text-xs ", PenguinUiWidgetTheme::BtnSuccessAction);
-    upload_btn_->clicked().connect(this, &VoiceRecorder::uploadFile);
-    upload_btn_->disable();
-    
-    // Transcribe button
-    transcribe_btn_ = widget_wrapper->addNew<Button>("🎤→📝", "m-1.5 text-xs ", PenguinUiWidgetTheme::BtnPrimaryAction);
-    transcribe_btn_->clicked().connect(this, &VoiceRecorder::transcribeCurrentAudio);
-    transcribe_btn_->disable();
+    // Removed upload and transcribe buttons - transcription now happens automatically
     
     recording_info_ = debug_wrapper->addNew<Wt::WContainerWidget>();
     recording_info_->setStyleClass("flex flex-col space-y-2");
@@ -164,9 +155,11 @@ void VoiceRecorder::startRecording()
         recording_timer_->start();
         play_pause_btn_->setText("0");
         play_pause_btn_->toggleStyleClass("animate-pulse", true);
+        play_pause_btn_->toggleStyleClass("outline", true);
+        play_pause_btn_->toggleStyleClass("outline-2", true);
         
         status_text_->setText("Recording audio... Speak now");
-        upload_btn_->disable();
+        // Removed upload_btn_->disable() since button was removed
     }
 }
 
@@ -180,11 +173,12 @@ void VoiceRecorder::stopRecording()
         // Stop the timer and restore microphone icon
         recording_timer_->stop();
         play_pause_btn_->setText(microphone_svg_);
-        play_pause_btn_->removeStyleClass("text-lg font-bold");
         play_pause_btn_->toggleStyleClass("animate-pulse", false);
-        
+        play_pause_btn_->toggleStyleClass("outline-2", false);
+        play_pause_btn_->toggleStyleClass("outline", false);
+
         status_text_->setText("Audio recording stopped");
-        upload_btn_->enable();
+        // Removed upload_btn_->enable() since button was removed
     }
 }
 
@@ -207,7 +201,6 @@ void VoiceRecorder::onFileUploaded()
             // Save the uploaded file to the permanent location
             if (saveAudioFile(tempFileName, permanentPath)) {
                 current_audio_file_ = permanentPath;
-                transcribe_btn_->enable();
                 status_text_->setText("Audio file saved: " + uniqueFileName);
                 std::cout << "Audio file saved: " << permanentPath << std::endl;
                 
@@ -221,7 +214,8 @@ void VoiceRecorder::onFileUploaded()
             status_text_->setText("Error: Could not create audio-files directory");
             // Fallback to using temp file
             current_audio_file_ = tempFileName;
-            transcribe_btn_->enable();
+            // Start automatic transcription even with temp file
+            transcribeCurrentAudio();
         }
     }
 }
@@ -247,7 +241,6 @@ void VoiceRecorder::enable()
     is_enabled_ = true;
     audio_player_->enable();
     play_pause_btn_->enable();
-    // upload_btn_->enable();
 }
 
 void VoiceRecorder::disable()
@@ -255,8 +248,6 @@ void VoiceRecorder::disable()
     is_enabled_ = false;
     audio_player_->disable();
     play_pause_btn_->disable();
-    transcribe_btn_->disable();
-    // upload_btn_->disable();
 }
 
 
@@ -590,10 +581,10 @@ void VoiceRecorder::initializeWhisper()
     auto& whisper = WhisperAi::getInstance();
     if (whisper.initialize()) {
         std::cout << "Whisper singleton initialized with ggml-base.en.bin model" << std::endl;
-        recording_info_->addNew<Wt::WText>("Speech-to-text ready ✓")->setStyleClass("text-green-500");
+        recording_info_->addNew<Wt::WText>("✓ WhisperAi instantiated successfully")->setStyleClass("text-green-500");
     } else {
         std::cout << "Failed to initialize Whisper: " << whisper.getLastError() << std::endl;
-        recording_info_->addNew<Wt::WText>("Whisper initialization failed. Transcription disabled.")->setStyleClass("text-red-500");
+        recording_info_->addNew<Wt::WText>("WhisperAi initialization failed. Transcription disabled.")->setStyleClass("text-red-500");
     }
 }
 
@@ -611,7 +602,6 @@ void VoiceRecorder::transcribeCurrentAudio()
     }
     
     status_text_->setText("Transcribing audio...");
-    transcribe_btn_->disable();
     transcription_display_->setText("⏳ Transcribing audio, please wait...");
     
     // Get the application instance to enable server push
@@ -688,8 +678,7 @@ void VoiceRecorder::performTranscriptionInBackground(Wt::WApplication* app)
             std::cout << "Transcription failed: " << error_message << std::endl;
         }
         
-        // Re-enable the transcribe button
-        transcribe_btn_->enable();
+        // Removed transcribe button re-enable since button was removed
         
         // Trigger UI update
         app->triggerUpdate();

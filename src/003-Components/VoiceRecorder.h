@@ -59,8 +59,6 @@ private:
     Wt::WAudio* audio_player_;
     Wt::WFileUpload* file_upload_;
     Button* play_pause_btn_;
-    Button* upload_btn_;
-    Button* transcribe_btn_;
     
     Wt::WContainerWidget* recording_info_;
     Wt::WTextArea* transcription_display_;
