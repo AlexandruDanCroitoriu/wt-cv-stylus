@@ -10,8 +10,10 @@
 #include <Wt/WAudio.h>
 #include <Wt/WFileUpload.h>
 #include <Wt/WSignal.h>
+#include <Wt/WTimer.h>
 #include <memory>
 #include <thread>
+#include <chrono>
 
 class Button; // Forward declaration
 class WhisperAi; // Forward declaration
@@ -48,6 +50,10 @@ private:
     std::string createAudioFilesDirectory();
     std::string generateUniqueFileName(const std::string& originalName);
     bool saveAudioFile(const std::string& tempPath, const std::string& permanentPath);
+    
+    // Timer management
+    void updateRecordingTimer();
+    std::string formatRecordingTime(int seconds);
 
     Wt::WText* status_text_;
     Wt::WAudio* audio_player_;
@@ -60,6 +66,9 @@ private:
     Wt::WTextArea* transcription_display_;
 
     bool is_recording_;
+    std::unique_ptr<Wt::WTimer> recording_timer_;
+    std::chrono::steady_clock::time_point recording_start_time_;
+    std::string microphone_svg_;
     Wt::JSignal<bool> js_signal_voice_recording_supported_;
     Wt::JSignal<bool> js_signal_microphone_avalable_;
     Wt::JSignal<bool> js_signal_audio_widget_has_media_;

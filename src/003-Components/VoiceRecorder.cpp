@@ -6,6 +6,7 @@
 #include <Wt/WTemplate.h>
 #include <Wt/WText.h>
 #include <Wt/WTextArea.h>
+#include <Wt/WTimer.h>
 #include <iostream>
 #include <filesystem>
 #include <fstream>
@@ -15,6 +16,7 @@
 
 VoiceRecorder::VoiceRecorder() 
     : is_recording_(false), 
+    recording_timer_(std::make_unique<Wt::WTimer>()),
     js_signal_voice_recording_supported_(this, "voiceRecordingSupported"),
     js_signal_microphone_avalable_(this, "microphoneAvailable"),
     js_signal_audio_widget_has_media_(this, "audioWidgetHasMedia"),
@@ -72,6 +74,11 @@ VoiceRecorder::VoiceRecorder()
 
 VoiceRecorder::~VoiceRecorder()
 {
+    // Stop timer if running
+    if (recording_timer_ && recording_timer_->isActive()) {
+        recording_timer_->stop();
+    }
+    
     // Clean up background thread if it's still running
     if (transcription_thread_.get_id() != std::this_thread::get_id() &&
         transcription_thread_.joinable()) {
@@ -94,7 +101,8 @@ void VoiceRecorder::setupUI()
     status_text_->addStyleClass("text-lg text-on-surface-variant absolute -top-4 left-3 bg-surface");
 
     // Start recording button
-    play_pause_btn_ = widget_wrapper->addNew<Button>(std::string(Wt::WString::tr("app:microphone-svg").toUTF8()), "m-1.5 text-xs ", PenguinUiWidgetTheme::BtnSuccessAction);
+    microphone_svg_ = std::string(Wt::WString::tr("app:microphone-svg").toUTF8());
+    play_pause_btn_ = widget_wrapper->addNew<Button>(microphone_svg_, "m-1.5 text-md ", PenguinUiWidgetTheme::BtnSuccessAction);
     play_pause_btn_->clicked().connect(this, [=]
     {
         if(!is_recording_) {
@@ -136,6 +144,10 @@ void VoiceRecorder::setupUI()
     file_upload_->uploaded().connect(this, &VoiceRecorder::onFileUploaded);
     file_upload_->fileTooLarge().connect(this, &VoiceRecorder::onFileTooLarge);
     
+    // Setup recording timer
+    recording_timer_->setInterval(std::chrono::milliseconds(1000)); // Update every second
+    recording_timer_->timeout().connect(this, &VoiceRecorder::updateRecordingTimer);
+    
 
 }
 
@@ -146,7 +158,13 @@ void VoiceRecorder::startRecording()
         callJavaScriptMember("start", "");
         
         is_recording_ = true;
+        recording_start_time_ = std::chrono::steady_clock::now();
+        
+        // Start the timer and update button
+        recording_timer_->start();
+        play_pause_btn_->setText("0");
         play_pause_btn_->toggleStyleClass("animate-pulse", true);
+        
         status_text_->setText("Recording audio... Speak now");
         upload_btn_->disable();
     }
@@ -158,7 +176,13 @@ void VoiceRecorder::stopRecording()
         // Call the stop member function
         callJavaScriptMember("stop", "");
         is_recording_ = false;
+        
+        // Stop the timer and restore microphone icon
+        recording_timer_->stop();
+        play_pause_btn_->setText(microphone_svg_);
+        play_pause_btn_->removeStyleClass("text-lg font-bold");
         play_pause_btn_->toggleStyleClass("animate-pulse", false);
+        
         status_text_->setText("Audio recording stopped");
         upload_btn_->enable();
     }
@@ -188,7 +212,7 @@ void VoiceRecorder::onFileUploaded()
                 std::cout << "Audio file saved: " << permanentPath << std::endl;
                 
                 // Start automatic transcription in background
-                // transcribeCurrentAudio();
+                transcribeCurrentAudio();
             } else {
                 status_text_->setText("Error: Failed to save audio file");
                 std::cout << "Failed to save audio file to: " << permanentPath << std::endl;
@@ -759,5 +783,22 @@ bool VoiceRecorder::saveAudioFile(const std::string& tempPath, const std::string
         std::cerr << "Exception while saving audio file: " << e.what() << std::endl;
         return false;
     }
+}
+
+void VoiceRecorder::updateRecordingTimer()
+{
+    if (is_recording_) {
+        auto now = std::chrono::steady_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::seconds>(now - recording_start_time_);
+        int seconds = duration.count();
+        
+        std::string time_text = formatRecordingTime(seconds);
+        play_pause_btn_->setText(time_text);
+    }
+}
+
+std::string VoiceRecorder::formatRecordingTime(int seconds)
+{
+    return std::to_string(seconds);
 }
 
