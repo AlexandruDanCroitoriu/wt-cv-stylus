@@ -1,16 +1,181 @@
 #!/bin/bash
 
-# Memory Analyzer Script
-# Usage: ./memory_analyzer.sh <PID>
-# Provides detailed memory usage analysis for a given process
+# ===========================================================================================
+# Memory Analyzer Script - Continuous memory analysis for processes
+# ===========================================================================================
+# Description: Provides comprehensive memory analysis for a given process with continuous 
+#              monitoring capability. Part of the unified wt-cv-stylus-copilot script ecosystem.
+# Usage:       ./memory_analyzer.sh [OPTIONS] <PID>
+# Author:      Script development following wt-cv-stylus-copilot standards
+# Created:     $(date +%Y-%m-%d)
+# Version:     1.0.0
+# ===========================================================================================
 
-# Colors for output formatting
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-CYAN='\033[0;36m'
-NC='\033[0m' # No Color
+# ===========================================================================================
+# INITIALIZATION AND SETUP
+# ===========================================================================================
+
+# Get script directory and name for standardized logging and operations
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_NAME="$(basename "$0" .sh)"
+TIMESTAMP="$(date +%Y%m%d_%H%M%S)"
+
+# Initialize LOG_FILE immediately to prevent undefined variable errors
+LOG_FILE="$SCRIPT_DIR/output/${SCRIPT_NAME}.log"
+
+# Ensure output directory exists
+mkdir -p "$SCRIPT_DIR/output"
+
+# ===========================================================================================
+# STANDARD COLOR DEFINITIONS (Following project standards)
+# ===========================================================================================
+readonly RED='\033[0;31m'
+readonly GREEN='\033[0;32m'
+readonly YELLOW='\033[1;33m'
+readonly BLUE='\033[0;34m'
+readonly CYAN='\033[0;36m'
+readonly PURPLE='\033[0;35m'
+readonly WHITE='\033[1;37m'
+readonly BOLD='\033[1m'
+readonly NC='\033[0m'
+
+# ===========================================================================================
+# LOGGING AND OUTPUT FUNCTIONS (Mandatory for all scripts)
+# ===========================================================================================
+
+log_info() {
+    echo -e "${GREEN}[INFO]${NC} $1" | tee -a "$LOG_FILE"
+}
+
+log_warn() {
+    echo -e "${YELLOW}[WARN]${NC} $1" | tee -a "$LOG_FILE"
+}
+
+log_error() {
+    echo -e "${RED}[ERROR]${NC} $1" | tee -a "$LOG_FILE"
+}
+
+log_debug() {
+    echo -e "${CYAN}[DEBUG]${NC} $1" | tee -a "$LOG_FILE"
+}
+
+# ===========================================================================================
+# HELP AND USAGE FUNCTIONS (Mandatory colorized help)
+# ===========================================================================================
+
+show_help() {
+    echo -e "${BOLD}${BLUE}MEMORY ANALYZER${NC} ${CYAN}v1.0.0${NC}"
+    echo -e "${BOLD}${WHITE}===============================================${NC}"
+    echo
+    echo -e "${BOLD}DESCRIPTION:${NC}"
+    echo -e "  Comprehensive memory analysis tool for the application running on port 9020."
+    echo -e "  Automatically detects and analyzes the process, providing detailed memory statistics."
+    echo -e "  ${YELLOW}Note: This script performs a single analysis and exits (used by memory_monitor.sh)${NC}"
+    echo
+    echo -e "${BOLD}USAGE:${NC}"
+    echo -e "  ${GREEN}$0${NC} ${YELLOW}[OPTIONS]${NC}"
+    echo
+    echo -e "${BOLD}OPTIONS:${NC}"
+    echo -e "  ${YELLOW}-h, --help${NC}        Show this help message"
+    echo -e "  ${YELLOW}-o, --output${NC}      Output file for results (default: stdout)"
+    echo
+    echo -e "${BOLD}EXAMPLES:${NC}"
+    echo -e "  ${GREEN}$0${NC}                          # Analyze app on port 9020"
+    echo -e "  ${GREEN}$0${NC} ${YELLOW}-o analysis.log${NC}       # Save analysis to file"
+    echo
+    echo -e "${BOLD}INTEGRATION:${NC}"
+    echo -e "  This script follows wt-cv-stylus-copilot development standards and integrates"
+    echo -e "  with the unified script ecosystem. Logs are written to:"
+    echo -e "  ${CYAN}$LOG_FILE${NC}"
+    echo
+}
+
+# ===========================================================================================
+# UTILITY FUNCTIONS FOR PID DETECTION
+# ===========================================================================================
+
+# Function to find PID of process running on port 9020
+find_port_9020_pid() {
+    local pid=$(lsof -ti:9020 2>/dev/null | head -1)
+    if [ -n "$pid" ]; then
+        echo "$pid"
+        return 0
+    else
+        return 1
+    fi
+}
+
+# ===========================================================================================
+# ARGUMENT PARSING AND VALIDATION
+# ===========================================================================================
+
+# Default values
+OUTPUT_FILE=""
+
+# Parse command line arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        -h|--help)
+            show_help
+            exit 0
+            ;;
+        -o|--output)
+            OUTPUT_FILE="$2"
+            shift 2
+            ;;
+        -*)
+            log_error "Unknown option: $1"
+            echo "Use $0 --help for usage information."
+            exit 1
+            ;;
+        *)
+            log_error "Unexpected argument: $1"
+            echo "This script automatically detects the PID from port 9020."
+            echo "Use $0 --help for usage information."
+            exit 1
+            ;;
+    esac
+done
+
+# Auto-detect PID from port 9020
+log_info "Auto-detecting PID for application on port 9020..."
+
+if ! command -v lsof >/dev/null 2>&1; then
+    log_error "lsof command not found. Please install lsof package."
+    exit 1
+fi
+
+PID=$(find_port_9020_pid)
+if [ -z "$PID" ]; then
+    log_error "No application found running on port 9020"
+    echo -e "${YELLOW}Hint: Start the application first with ${CYAN}./scripts/run.sh${NC}"
+    exit 1
+fi
+
+log_info "Found application with PID $PID running on port 9020"
+
+# Validate detected PID
+if ! [[ "$PID" =~ ^[0-9]+$ ]]; then
+    log_error "Invalid PID detected: $PID"
+    exit 1
+fi
+
+# Check if process exists (double-check)
+if ! kill -0 "$PID" 2>/dev/null; then
+    log_error "Process with PID $PID does not exist or insufficient permissions"
+    exit 1
+fi
+
+# Set default output file if not specified (empty means stdout)
+if [ -z "$OUTPUT_FILE" ]; then
+    OUTPUT_TO_STDOUT=true
+else
+    OUTPUT_TO_STDOUT=false
+fi
+
+# ===========================================================================================
+# UTILITY FUNCTIONS
+# ===========================================================================================
 
 # Function to convert KB to human readable format
 kb_to_human() {
@@ -36,195 +201,161 @@ format_number() {
     printf "%'d" $1 2>/dev/null || echo $1
 }
 
-# Check if PID argument is provided
-if [ $# -eq 0 ]; then
-    echo -e "${RED}Error: Please provide a PID as an argument${NC}"
-    echo "Usage: $0 <PID>"
-    exit 1
-fi
-
-PID=$1
-
-# Validate PID is a number
-if ! [[ "$PID" =~ ^[0-9]+$ ]]; then
-    echo -e "${RED}Error: PID must be a number${NC}"
-    exit 1
-fi
-
-# Check if process exists
-if ! kill -0 "$PID" 2>/dev/null; then
-    echo -e "${RED}Error: Process with PID $PID does not exist or you don't have permission to access it${NC}"
-    exit 1
-fi
-
-echo -e "${CYAN}================================================================${NC}"
-echo -e "${CYAN}           Memory Usage Analysis for Process $PID${NC}"
-echo -e "${CYAN}================================================================${NC}"
-echo
-
-# Get basic process information
-echo -e "${BLUE}### Process Information ###${NC}"
-ps_info=$(ps -p $PID -o pid,ppid,rss,vsz,pmem,comm --no-headers 2>/dev/null)
-if [ -n "$ps_info" ]; then
-    read pid ppid rss vsz pmem comm <<< "$ps_info"
-    cmd_line=$(ps -p $PID -o cmd --no-headers 2>/dev/null)
+# Function to get comprehensive memory analysis for a process
+analyze_process_memory() {
+    local pid=$1
+    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
     
-    echo -e "PID: ${GREEN}$pid${NC}"
-    echo -e "PPID: $ppid"
-    echo -e "Command: ${YELLOW}$comm${NC}"
-    echo -e "Full Command: $cmd_line"
-    echo -e "RSS (Physical Memory): ${GREEN}$(kb_to_human $rss)${NC} ($(format_number $rss) KB)"
-    echo -e "VSZ (Virtual Memory): $(kb_to_human $vsz) ($(format_number $vsz) KB)"
-    echo -e "Memory Percentage: ${GREEN}$pmem%${NC}"
-else
-    echo -e "${RED}Could not retrieve basic process information${NC}"
-fi
-
-echo
-
-# Get detailed memory information from /proc/PID/status
-echo -e "${BLUE}### Detailed Memory Breakdown ###${NC}"
-if [ -r "/proc/$PID/status" ]; then
-    # Extract memory values
-    vmpeak=$(grep "^VmPeak:" /proc/$PID/status | awk '{print $2}')
-    vmsize=$(grep "^VmSize:" /proc/$PID/status | awk '{print $2}')
-    vmhwm=$(grep "^VmHWM:" /proc/$PID/status | awk '{print $2}')
-    vmrss=$(grep "^VmRSS:" /proc/$PID/status | awk '{print $2}')
-    rssanon=$(grep "^RssAnon:" /proc/$PID/status | awk '{print $2}')
-    rssfile=$(grep "^RssFile:" /proc/$PID/status | awk '{print $2}')
-    rssshmem=$(grep "^RssShmem:" /proc/$PID/status | awk '{print $2}')
-    vmdata=$(grep "^VmData:" /proc/$PID/status | awk '{print $2}')
-    vmstk=$(grep "^VmStk:" /proc/$PID/status | awk '{print $2}')
-    vmexe=$(grep "^VmExe:" /proc/$PID/status | awk '{print $2}')
-    vmlib=$(grep "^VmLib:" /proc/$PID/status | awk '{print $2}')
-    vmpte=$(grep "^VmPTE:" /proc/$PID/status | awk '{print $2}')
-    vmswap=$(grep "^VmSwap:" /proc/$PID/status | awk '{print $2}')
-    threads=$(grep "^Threads:" /proc/$PID/status | awk '{print $2}')
+    log_info "Starting memory analysis for PID $pid at $timestamp"
     
-    echo -e "${GREEN}Current Memory Usage:${NC}"
-    echo -e "• RSS (Resident Set Size): ${GREEN}$(kb_to_human $vmrss)${NC} (~$((vmrss/1024)) MB) - ${GREEN}Physical memory currently used${NC}"
-    echo -e "• VmSize (Virtual Memory Size): $(kb_to_human $vmsize) (~$((vmsize/1024)) MB) - Total virtual memory"
-    echo -e "• VmPeak: $(kb_to_human $vmpeak) (~$((vmpeak/1024)) MB) - Peak virtual memory usage"
-    echo
+    # Check if process still exists
+    if ! kill -0 "$pid" 2>/dev/null; then
+        log_error "Process $pid no longer exists"
+        return 1
+    fi
     
-    echo -e "${YELLOW}Memory Breakdown:${NC}"
-    echo -e "• VmData: $(kb_to_human $vmdata) (~$((vmdata/1024)) MB) - Data/heap memory"
-    echo -e "• RssAnon: $(kb_to_human $rssanon) (~$((rssanon/1024)) MB) - Anonymous pages (heap, stack)"
-    echo -e "• RssFile: $(kb_to_human $rssfile) (~$((rssfile/1024)) MB) - File-backed pages (libraries, executables)"
-    echo -e "• RssShmem: $(kb_to_human $rssshmem) - Shared memory"
-    echo -e "• VmLib: $(kb_to_human $vmlib) (~$((vmlib/1024)) MB) - Shared libraries"
-    echo -e "• VmExe: $(kb_to_human $vmexe) (~$((vmexe/1024)) MB) - Executable code"
-    echo -e "• VmStk: $(kb_to_human $vmstk) - Stack memory"
-    echo -e "• VmPTE: $(kb_to_human $vmpte) - Page table entries"
-    echo -e "• VmSwap: $(kb_to_human $vmswap) - Swapped memory"
-    echo
+    local status_file="/proc/$pid/status"
+    local stat_file="/proc/$pid/stat"
+    local maps_file="/proc/$pid/maps"
+    local smaps_file="/proc/$pid/smaps"
     
-    echo -e "${CYAN}Process Details:${NC}"
-    echo -e "• Threads: ${GREEN}$threads${NC} threads running"
-    
-    # Calculate peak usage
-    if [ -n "$vmhwm" ] && [ "$vmhwm" != "0" ]; then
-        echo -e "• VmHWM (Peak RSS): $(kb_to_human $vmhwm) (~$((vmhwm/1024)) MB) - Peak physical memory usage"
+    # Check if we can read process files
+    if [ ! -r "$status_file" ]; then
+        log_error "Cannot read $status_file - insufficient permissions"
+        return 1
     fi
     
     echo
-    echo -e "${BLUE}### Structured Data Table (for monitoring) ###${NC}"
+    echo -e "${BOLD}${CYAN}================================================================${NC}"
+    echo -e "${BOLD}${CYAN}    COMPREHENSIVE MEMORY ANALYSIS - PID $pid${NC}"
+    echo -e "${BOLD}${CYAN}    Timestamp: $timestamp${NC}"
+    echo -e "${BOLD}${CYAN}================================================================${NC}"
+    
+    # Extract process information
+    local cmd=$(cat /proc/$pid/comm 2>/dev/null || echo "unknown")
+    local cmdline=$(cat /proc/$pid/cmdline 2>/dev/null | tr '\0' ' ' || echo "unknown")
+    
+    echo -e "${BLUE}Process Information:${NC}"
+    echo -e "  Command: ${GREEN}$cmd${NC}"
+    echo -e "  Command Line: ${GREEN}$cmdline${NC}"
+    echo
+    
+    # Extract memory information from /proc/PID/status
     echo "MEMORY_DATA_START"
-    printf "%-12s | %-8s | %-10s | %-10s | %-11s | %-8s\n" "Metric" "Value_KB" "Value_MB" "Human" "Description" "Type"
-    echo "-------------|----------|------------|------------|-------------|----------"
-    printf "%-12s | %-8s | %-10s | %-10s | %-11s | %-8s\n" "RSS" "$vmrss" "$((vmrss/1024))" "$(kb_to_human $vmrss)" "Physical_Memory" "CURRENT"
-    printf "%-12s | %-8s | %-10s | %-10s | %-11s | %-8s\n" "VmSize" "$vmsize" "$((vmsize/1024))" "$(kb_to_human $vmsize)" "Virtual_Memory" "CURRENT"
-    printf "%-12s | %-8s | %-10s | %-10s | %-11s | %-8s\n" "VmPeak" "$vmpeak" "$((vmpeak/1024))" "$(kb_to_human $vmpeak)" "Peak_Virtual" "PEAK"
-    printf "%-12s | %-8s | %-10s | %-10s | %-11s | %-8s\n" "VmData" "$vmdata" "$((vmdata/1024))" "$(kb_to_human $vmdata)" "Data_Heap" "CURRENT"
-    printf "%-12s | %-8s | %-10s | %-10s | %-11s | %-8s\n" "RssAnon" "$rssanon" "$((rssanon/1024))" "$(kb_to_human $rssanon)" "Anonymous" "CURRENT"
-    printf "%-12s | %-8s | %-10s | %-10s | %-11s | %-8s\n" "RssFile" "$rssfile" "$((rssfile/1024))" "$(kb_to_human $rssfile)" "File_Backed" "CURRENT"
-    printf "%-12s | %-8s | %-10s | %-10s | %-11s | %-8s\n" "VmLib" "$vmlib" "$((vmlib/1024))" "$(kb_to_human $vmlib)" "Libraries" "CURRENT"
-    printf "%-12s | %-8s | %-10s | %-10s | %-11s | %-8s\n" "Threads" "$threads" "$threads" "$threads" "Thread_Count" "COUNT"
-    if [ -n "$vmhwm" ] && [ "$vmhwm" != "0" ]; then
-        printf "%-12s | %-8s | %-10s | %-10s | %-11s | %-8s\n" "VmHWM" "$vmhwm" "$((vmhwm/1024))" "$(kb_to_human $vmhwm)" "Peak_Physical" "PEAK"
-    fi
+    printf "%-12s | %-15s | %-15s\n" "Metric" "Value (KB)" "Value (MB)"
+    printf "%-12s-+-%-15s-+-%-15s\n" "------------" "---------------" "---------------"
+    
+    # Parse status file for memory metrics
+    while IFS=: read -r key value; do
+        case "$key" in
+            VmPeak|VmSize|VmLck|VmPin|VmHWM|VmRSS|VmData|VmStk|VmExe|VmLib|VmPTE|VmSwap|RssAnon|RssFile|RssShmem)
+                # Extract numeric value (remove kB suffix and whitespace)
+                local kb_value=$(echo "$value" | sed 's/[^0-9]//g')
+                if [ -n "$kb_value" ] && [ "$kb_value" -gt 0 ]; then
+                    local mb_value=$((kb_value / 1024))
+                    printf "%-12s | %'15d | %'15d\n" "$key" "$kb_value" "$mb_value"
+                fi
+                ;;
+            Threads)
+                local thread_count=$(echo "$value" | sed 's/[^0-9]//g')
+                printf "%-12s | %'15s | %'15s\n" "$key" "$thread_count" "N/A"
+                ;;
+        esac
+    done < "$status_file"
     echo "MEMORY_DATA_END"
-    
-else
-    echo -e "${RED}Could not read /proc/$PID/status${NC}"
-fi
-
-echo
-
-# Get memory mapping summary
-echo -e "${BLUE}### Memory Mapping Summary ###${NC}"
-if command -v pmap >/dev/null 2>&1; then
-    pmap_output=$(pmap -x $PID 2>/dev/null | tail -1)
-    if [ -n "$pmap_output" ]; then
-        # Check if this is the total line (contains "total")
-        if echo "$pmap_output" | grep -q "total"; then
-            # Extract numeric values from the total line
-            total_virtual=$(echo "$pmap_output" | awk '{print $3}')
-            total_rss=$(echo "$pmap_output" | awk '{print $4}')
-            total_dirty=$(echo "$pmap_output" | awk '{print $5}')
-            
-            # Validate that we got numeric values
-            if [[ "$total_virtual" =~ ^[0-9]+$ ]] && [[ "$total_rss" =~ ^[0-9]+$ ]] && [[ "$total_dirty" =~ ^[0-9]+$ ]]; then
-                echo -e "Total Virtual: $(kb_to_human $total_virtual)"
-                echo -e "Total RSS: ${GREEN}$(kb_to_human $total_rss)${NC}"
-                echo -e "Total Dirty: $(kb_to_human $total_dirty)"
-            else
-                echo -e "${YELLOW}Could not parse memory mapping values${NC}"
-                echo -e "Raw pmap output: $pmap_output"
-            fi
-        else
-            echo -e "${YELLOW}Unexpected pmap output format${NC}"
-            echo -e "Raw pmap output: $pmap_output"
-        fi
-    else
-        echo -e "${YELLOW}Could not retrieve memory mapping information${NC}"
-    fi
-else
-    echo -e "${YELLOW}pmap command not available${NC}"
-fi
-
-echo
-
-# Get process name and additional info
-echo -e "${BLUE}### Key Observations ###${NC}"
-process_name=$(ps -p $PID -o comm= 2>/dev/null)
-if [ -n "$vmrss" ] && [ -n "$vmsize" ]; then
-    physical_mb=$((vmrss / 1024))
-    virtual_gb=$((vmsize / 1048576))
-    
-    echo -e "1. ${GREEN}Physical Memory Usage${NC}: ~${GREEN}${physical_mb} MB${NC} - This is the actual RAM being used"
-    echo -e "2. ${YELLOW}Virtual Memory${NC}: ~${virtual_gb} GB - This includes memory-mapped files and allocated but not physically used memory"
-    
-    if [ -n "$threads" ]; then
-        echo -e "3. ${CYAN}Threads${NC}: $threads threads running"
-    fi
-    
-    if [ -n "$vmpeak" ] && [ "$vmpeak" != "$vmsize" ]; then
-        peak_gb=$((vmpeak / 1048576))
-        echo -e "4. ${BLUE}Peak Usage${NC}: The process peaked at ~${peak_gb} GB virtual memory"
-    fi
-    
     echo
-    echo -e "${GREEN}### Memory Efficiency Notes ###${NC}"
-    if [ -n "$process_name" ]; then
-        echo -e "For a ${YELLOW}$process_name${NC} process:"
-    fi
-    echo -e "The ${GREEN}${physical_mb} MB physical memory usage${NC} represents the actual RAM consumption."
-    echo -e "Virtual memory includes memory-mapped files, shared libraries, and allocated but unused memory."
     
-    # Memory usage assessment
-    if [ $physical_mb -lt 100 ]; then
-        echo -e "${GREEN}✓ Low memory usage - very efficient${NC}"
-    elif [ $physical_mb -lt 500 ]; then
-        echo -e "${YELLOW}✓ Moderate memory usage - reasonable for most applications${NC}"
-    elif [ $physical_mb -lt 1000 ]; then
-        echo -e "${YELLOW}⚠ High memory usage - monitor for memory leaks${NC}"
-    else
-        echo -e "${RED}⚠ Very high memory usage - investigate for optimization opportunities${NC}"
+    # Memory mapping analysis
+    if [ -r "$smaps_file" ]; then
+        echo -e "${BLUE}Memory Mapping Analysis:${NC}"
+        
+        # Calculate totals from smaps
+        local total_size=$(awk '/^Size:/ {sum+=$2} END {print sum}' "$smaps_file" 2>/dev/null || echo 0)
+        local total_rss=$(awk '/^Rss:/ {sum+=$2} END {print sum}' "$smaps_file" 2>/dev/null || echo 0)
+        local total_pss=$(awk '/^Pss:/ {sum+=$2} END {print sum}' "$smaps_file" 2>/dev/null || echo 0)
+        local total_dirty=$(awk '/^Private_Dirty:/ {sum+=$2} END {print sum}' "$smaps_file" 2>/dev/null || echo 0)
+        
+        echo "  Total Virtual: $(kb_to_human $total_size)"
+        echo "  Total RSS: $(kb_to_human $total_rss)"
+        echo "  Total PSS: $(kb_to_human $total_pss)"
+        echo "  Total Dirty: $(kb_to_human $total_dirty)"
+        echo
+        
+        # Memory efficiency assessment
+        if [ "$total_rss" -gt 0 ]; then
+            local rss_mb=$((total_rss / 1024))
+            echo -e "${BLUE}Memory Efficiency Assessment:${NC}"
+            if [ $rss_mb -lt 50 ]; then
+                echo -e "  ${GREEN}Low memory usage - very efficient${NC} (< 50 MB)"
+            elif [ $rss_mb -lt 200 ]; then
+                echo -e "  ${YELLOW}Moderate memory usage - reasonable${NC} (50-200 MB)"
+            elif [ $rss_mb -lt 500 ]; then
+                echo -e "  ${PURPLE}High memory usage - monitor${NC} (200-500 MB)"
+            else
+                echo -e "  ${RED}Very high memory usage - investigate${NC} (> 500 MB)"
+            fi
+            echo
+        fi
+    fi
+    
+    # Memory regions breakdown
+    if [ -r "$maps_file" ]; then
+        echo -e "${BLUE}Memory Regions Summary:${NC}"
+        local heap_count=$(grep -c "\[heap\]" "$maps_file" 2>/dev/null || echo 0)
+        local stack_count=$(grep -c "\[stack" "$maps_file" 2>/dev/null || echo 0)
+        local lib_count=$(grep -c "\.so" "$maps_file" 2>/dev/null || echo 0)
+        local total_regions=$(wc -l < "$maps_file" 2>/dev/null || echo 0)
+        
+        echo "  Total Memory Regions: $total_regions"
+        echo "  Heap Regions: $heap_count"
+        echo "  Stack Regions: $stack_count"
+        echo "  Shared Libraries: $lib_count"
+        echo
+    fi
+    
+    log_info "Memory analysis completed for PID $pid"
+    return 0
+}
+
+# ===========================================================================================
+# SIGNAL HANDLING
+# ===========================================================================================
+
+# Set up signal handler for graceful shutdown
+cleanup() {
+    log_info "Received interrupt signal - stopping memory analyzer"
+    exit 0
+}
+trap cleanup SIGINT SIGTERM
+
+# ===========================================================================================
+# MAIN EXECUTION LOGIC
+# ===========================================================================================
+
+log_info "Memory analyzer started for single analysis of PID: $PID"
+
+# Perform single analysis
+if [ "$OUTPUT_TO_STDOUT" = true ]; then
+    # Output to stdout (for use by memory monitor)
+    analyze_process_memory "$PID"
+    exit_code=$?
+else
+    # Output to file
+    {
+        echo "=== Memory Analysis - $(date) ==="
+        analyze_process_memory "$PID"
+    } > "$OUTPUT_FILE"
+    exit_code=$?
+    
+    if [ $exit_code -eq 0 ]; then
+        echo -e "${GREEN}Analysis complete. Results saved to: $OUTPUT_FILE${NC}"
     fi
 fi
 
-echo
-echo -e "${CYAN}================================================================${NC}"
-echo -e "${CYAN}                    Analysis Complete${NC}"
-echo -e "${CYAN}================================================================${NC}"
+if [ $exit_code -eq 0 ]; then
+    log_info "Memory analysis completed successfully"
+else
+    log_error "Memory analysis failed"
+fi
+
+exit $exit_code

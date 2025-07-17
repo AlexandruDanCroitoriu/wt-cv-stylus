@@ -1,0 +1,3 @@
+# Ignore uploaded audio files but keep the directory
+*
+!.gitignore
