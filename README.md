@@ -1,8 +1,8 @@
-# Wt CV Stylus Copilot
+# Wt CV Stylus
 
-A modern C++ web application built with Wt framework, and styled using TailwindCss4, featuring authentication, database integration, and AI-powered speech to text.
+A modern C++ web application built with Wt framework and styled using TailwindCSS 4, featuring authentication, database integration, and AI-powered speech-to-text.
 
-The pooject is my personal portfolio and CV website, showcasing diferent project implementations all in one.
+The project is a personal portfolio and CV website, showcasing different project implementations all in one cohesive application.
 
 ## 📚 External Libraries
 
@@ -24,10 +24,12 @@ This project utilizes several high-quality open-source libraries:
 
 ## 🛠️ Quick Start
 
+This project follows a **script-driven development philosophy** where all operations are performed through unified scripts in the `scripts/` directory.
+
 ### 1. Clone and Setup
 ```bash
-git clone https://github.com/AlexandruDanCroitoriu/wt-cv-stylus-copilot.git
-cd wt-cv-stylus-copilot
+git clone https://github.com/AlexandruDanCroitoriu/wt-cv-stylus.git
+cd wt-cv-stylus
 
 # Clone external libraries
 ./scripts/clone_libraries.sh
@@ -38,110 +40,118 @@ cd wt-cv-stylus-copilot
 
 ### 2. Build
 ```bash
-# For development (debug build)
-./scripts/build-debug.sh
+# Build the application (defaults to debug mode)
+./scripts/build.sh
 
-# For production (release build)
-./scripts/build-release.sh
+# Build with explicit mode selection
+./scripts/build.sh --debug      # Debug build
+./scripts/build.sh --release    # Release build
 
-# Or use the universal development script
-./scripts/dev.sh build --debug     # Debug build
-./scripts/dev.sh build --release   # Release build
+# Clean builds
+./scripts/build.sh --debug clean
+./scripts/build.sh --release clean
 ```
 
 ### 3. Run
 ```bash
-# Run debug version
-./scripts/run-debug.sh
+# Run the application (defaults to debug mode)
+# Automatically builds if needed
+./scripts/run.sh
 
-# Run release version  
-./scripts/run-release.sh
+# Run with explicit mode selection
+./scripts/run.sh --debug      # Run debug version
+./scripts/run.sh --release    # Run release version
 
-# Or use the universal development script
-./scripts/dev.sh run --debug       # Run debug version
-./scripts/dev.sh run --release     # Run release version
+# Run with custom server arguments
+./scripts/run.sh --debug -- --http-port=8080 --docroot=.
 ```
 
-### 4. Build and Run in One Command
+### 4. Development Workflow
 ```bash
-# Build and run debug version
-./scripts/build-and-run.sh debug
+# Standard development cycle
+./scripts/build.sh --debug clean  # Clean build
+./scripts/run.sh --debug          # Run with auto-rebuild if needed
 
-# Build and run release version
-./scripts/build-and-run.sh release
-
-# Or use the universal development script (recommended)
-./scripts/dev.sh dev --debug       # Build and run debug
-./scripts/dev.sh dev --release     # Build and run release
+# Quick rebuild and run (for iterative development)
+./scripts/run.sh                  # Auto-rebuilds only if needed
 ```
 
 Access the application at: http://localhost:9020
 
 ## 📜 Script Commands
 
-The `scripts/` directory contains utility scripts for development and monitoring. **All scripts automatically save their output with timestamps to log files in `scripts/output/` for debugging and audit purposes.**
+The `scripts/` directory contains utility scripts for development and monitoring following a **script-driven development philosophy**. **All scripts automatically save their output with timestamps to log files in `scripts/output/` for debugging and audit purposes.**
 
-### Library Management
+### Core Development Scripts
+
+#### Build Script
 ```bash
-# Clone all external libraries without creating git submodules
+# Usage: ./scripts/build.sh [--debug|--release|-d|-r] [clean]
+
+# Default build (debug mode)
+./scripts/build.sh
+
+# Explicit build type
+./scripts/build.sh --debug           # Debug build
+./scripts/build.sh --release         # Release build
+./scripts/build.sh -d                # Debug build (short option)
+./scripts/build.sh -r                # Release build (short option)
+
+# Clean builds
+./scripts/build.sh clean             # Clean debug build
+./scripts/build.sh --release clean   # Clean release build
+
+# Get help
+./scripts/build.sh --help
+```
+
+#### Run Script
+```bash
+# Usage: ./scripts/run.sh [--debug|--release|-d|-r] [-- app_args...]
+
+# Default run (debug mode, auto-builds if needed)
+./scripts/run.sh
+
+# Explicit run mode
+./scripts/run.sh --debug             # Run debug build
+./scripts/run.sh --release           # Run release build
+./scripts/run.sh -d                  # Run debug build (short option)
+./scripts/run.sh -r                  # Run release build (short option)
+
+# With application arguments
+./scripts/run.sh -- --http-port=8080 --docroot=.
+
+# Get help
+./scripts/run.sh --help
+```
+
+### Utility Scripts
+
+#### Library Management
+```bash
+# Clone all external dependencies
 ./scripts/clone_libraries.sh
 ```
 
-### Build Scripts
+#### Memory Analysis
 ```bash
-# Build application in debug mode
-./scripts/build-debug.sh [clean]
-
-# Build application in release mode  
-./scripts/build-release.sh [clean]
-
-# Examples:
-./scripts/build-debug.sh clean    # Clean debug build
-./scripts/build-release.sh        # Incremental release build
-```
-
-### Run Scripts
-```bash
-# Run debug version of the application
-./scripts/run-debug.sh [additional_args...]
-
-# Run release version of the application
-./scripts/run-release.sh [additional_args...]
-
-# Examples:
-./scripts/run-debug.sh                    # Run with default settings
-./scripts/run-release.sh --http-port 8080 # Override port
-```
-
-### Combined Build and Run Scripts
-```bash
-# Build and run in one command
-./scripts/build-and-run.sh [debug|release] [clean] [-- app_args...]
-
-# Universal development script (recommended)
-./scripts/dev.sh <command> [options] [-- app_args...]
-
-# Examples:
-./scripts/build-and-run.sh debug clean           # Clean debug build and run
-./scripts/build-and-run.sh release -- --threads 8 # Release with custom args
-
-./scripts/dev.sh build --release --clean         # Clean release build
-./scripts/dev.sh run --debug                     # Run debug version
-./scripts/dev.sh dev --release                   # Build and run release
-./scripts/dev.sh status                          # Show project status
-./scripts/dev.sh clean                           # Clean all builds
-```
-
-### Memory Monitoring
-```bash
-# Comprehensive memory analysis for a specific process
+# Analyze memory usage of running application
 ./scripts/memory_analyzer.sh <PID>
 
-# Continuous memory monitoring (updates every second)
+# Monitor memory usage in real-time
 ./scripts/memory_monitor.sh <PID>
+```
 
-# Legacy memory analyzer (project root)
-./memory_analyzer.sh
+#### Script Help
+```bash
+# Display overview of all available scripts
+./scripts/README.sh
+```
+
+#### Development Helper Script
+```bash
+# Multi-purpose development helper
+./scripts/dev.sh <command> [options]
 ```
 
 ### Model Management
@@ -152,11 +162,12 @@ The `scripts/` directory contains utility scripts for development and monitoring
 
 ### Script Logs
 All script executions are automatically logged with comprehensive output capture:
-- **Build logs**: `scripts/output/build-debug-YYYYMMDD_HHMMSS.log`
-- **Run logs**: `scripts/output/run-release-YYYYMMDD_HHMMSS.log`
-- **Combined logs**: `scripts/output/build-and-run-YYYYMMDD_HHMMSS.log`
-- **Development logs**: `scripts/output/dev-command-buildtype-YYYYMMDD_HHMMSS.log`
-- **Library logs**: `scripts/output/clone-libraries-YYYYMMDD_HHMMSS.log`
+- **Build logs**: `scripts/output/build.log`
+- **Run logs**: `scripts/output/run.log`
+- **Library logs**: `scripts/output/clone-libraries.log`
+- **Memory analysis logs**: `scripts/output/memory-analyzer.log`
+- **Memory monitoring logs**: `scripts/output/memory-monitor.log`
+- **Development logs**: `scripts/output/dev.log`
 
 **Enhanced Logging Features:**
 - **Complete output capture**: Both CMake configuration and build output are fully logged
@@ -241,45 +252,59 @@ static/
 
 ## 🔧 Development
 
+### Script-Driven Development Philosophy
+
+This project follows a **script-driven development approach** where all common operations are handled through standardized scripts in the `scripts/` directory. This ensures consistency, proper logging, and simplified workflows.
+
 ### Building for Development
 ```bash
-# Use the provided script for easy debug builds
-./scripts/build-debug.sh clean
+# Use the unified build script
+./scripts/build.sh --debug clean
 
-# Or manually:
-mkdir build/debug && cd build/debug
-cmake .. -DCMAKE_BUILD_TYPE=Debug -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
-make -j$(nproc)
+# Build with compiler optimizations disabled and debug symbols
+./scripts/build.sh --debug
 ```
 
 ### Building for Production
 ```bash
-# Use the provided script for optimized release builds
-./scripts/build-release.sh clean
+# Use the unified build script with release flag
+./scripts/build.sh --release clean
 
-# Or manually:
-mkdir build/release && cd build/release
-cmake .. -DCMAKE_BUILD_TYPE=Release
-make -j$(nproc)
+# Build with compiler optimizations and no debug symbols
+./scripts/build.sh --release
 ```
 
 ### Running the Application
 ```bash
-# Development with debugging symbols
-./scripts/run-debug.sh
+### Running the Application
+```bash
+# Development mode (auto-builds if needed)
+./scripts/run.sh --debug
 
-# Production optimized version
-./scripts/run-release.sh
+# Production mode (auto-builds if needed)
+./scripts/run.sh --release
 
 # With custom arguments
-./scripts/run-debug.sh --http-port 8080 -v 3
+./scripts/run.sh --debug -- --http-port=8080 --docroot=.
 ```
 
 ### Memory Profiling
 Use the included memory monitoring tools to profile your application:
 ```bash
 # Start your application
-./scripts/run-debug.sh &
+./scripts/run.sh --debug &
+APP_PID=$!
+
+# Monitor memory usage
+./scripts/memory_monitor.sh $APP_PID
+```
+```
+
+### Memory Profiling
+Use the included memory monitoring tools to profile your application:
+```bash
+# Start your application using scripts
+./scripts/run.sh --debug &
 APP_PID=$!
 
 # Monitor memory usage
