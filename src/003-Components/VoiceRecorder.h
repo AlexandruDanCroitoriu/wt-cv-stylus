@@ -16,7 +16,7 @@
 #include <chrono>
 
 class Button; // Forward declaration
-class WhisperAi; // Forward declaration
+class WhisperServiceClient; // Forward declaration
 
 
 class VoiceRecorder : public Wt::WContainerWidget
@@ -43,8 +43,7 @@ private:
     void onFileUploaded();
     void onFileTooLarge();
     void uploadFile();
-    void initializeWhisper();
-    void performTranscriptionInBackground(Wt::WApplication* app);
+    void performTranscriptionInBackground(Wt::WApplication* app, const std::string& audio_file_path);
     
     // Audio file management
     std::string createAudioFilesDirectory();
@@ -74,12 +73,12 @@ private:
     bool is_microphone_available_;
     bool is_enabled_;
     
-    // Whisper integration - use singleton reference
+    // Transcription data
     std::string current_transcription_;
     std::string current_audio_file_;
     Wt::Signal<std::string> transcription_complete_;
     
-    // Threading support for non-blocking transcription
-    std::thread transcription_thread_;
+    // Simple flag to prevent multiple simultaneous transcriptions
+    bool transcription_in_progress_;
 
 };

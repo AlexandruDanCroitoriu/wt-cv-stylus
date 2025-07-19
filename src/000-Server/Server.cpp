@@ -2,7 +2,6 @@
 
 #include "000-Server/Server.h"
 #include "001-App/App.h"
-#include "000-Server/Whisper/WhisperAi.h" // Include for singleton initialization
 #include <Wt/WSslInfo.h>
 #include <csignal>
 #include <iostream>
@@ -31,14 +30,9 @@ Server::Server(int argc, char **argv)
     setServerConfiguration(argc_, argv_, WTHTTP_CONFIGURATION);
     configureAuth();
     
-    // Initialize Whisper singleton early to load model once
-    std::cout << "Initializing Whisper singleton..." << std::endl;
-    auto& whisper = WhisperAi::getInstance();
-    if (whisper.initialize()) {
-        std::cout << "Whisper singleton initialized successfully" << std::endl;
-    } else {
-        std::cout << "Failed to initialize Whisper singleton: " << whisper.getLastError() << std::endl;
-    }
+    // Whisper transcription is now handled by external whisper_service executable
+    // Each VoiceRecorder instance will call the service as needed
+    std::cout << "Server configured - Whisper transcription will use external service" << std::endl;
     
     // std::cout << "Application arguments:" << std::endl;
     // for (int i = 0; i < argc; ++i) {

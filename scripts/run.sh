@@ -92,6 +92,66 @@ show_usage() {
     echo -e "${YELLOW}Note:${NC} Existing application instances on port 9020 will be automatically terminated."
 }
 
+# Function to forcefully cleanup all instances of our application
+force_cleanup_app_instances() {
+    print_status "Performing comprehensive cleanup of application instances..."
+    
+    # Kill all processes named 'app' that have our project path in their command line
+    local our_app_pids=$(pgrep -f "app.*9020" 2>/dev/null || true)
+    if [ -n "$our_app_pids" ]; then
+        print_status "Found running app instances, terminating..."
+        echo "$our_app_pids" | while read pid; do
+            if [ -n "$pid" ]; then
+                print_status "Killing process $pid..."
+                kill -TERM "$pid" 2>/dev/null || true
+            fi
+        done
+        
+        # Wait for graceful shutdown
+        sleep 3
+        
+        # Force kill any remaining processes
+        our_app_pids=$(pgrep -f "app.*9020" 2>/dev/null || true)
+        if [ -n "$our_app_pids" ]; then
+            print_warning "Some processes still running, force killing..."
+            echo "$our_app_pids" | while read pid; do
+                if [ -n "$pid" ]; then
+                    kill -9 "$pid" 2>/dev/null || true
+                fi
+            done
+            sleep 2
+        fi
+    fi
+    
+    # Kill any process using port 9020
+    local port_pids=$(lsof -ti:9020 2>/dev/null || true)
+    if [ -n "$port_pids" ]; then
+        print_status "Found processes using port 9020, terminating..."
+        echo "$port_pids" | while read pid; do
+            if [ -n "$pid" ]; then
+                print_status "Killing process $pid using port 9020..."
+                kill -TERM "$pid" 2>/dev/null || true
+            fi
+        done
+        
+        sleep 2
+        
+        # Force kill any remaining processes on port 9020
+        port_pids=$(lsof -ti:9020 2>/dev/null || true)
+        if [ -n "$port_pids" ]; then
+            print_warning "Some processes still using port 9020, force killing..."
+            echo "$port_pids" | while read pid; do
+                if [ -n "$pid" ]; then
+                    kill -9 "$pid" 2>/dev/null || true
+                fi
+            done
+            sleep 2
+        fi
+    fi
+    
+    print_success "Application cleanup completed"
+}
+
 # Function to check if port is available and handle conflicts
 check_and_handle_port() {
     local port="9020"
@@ -129,10 +189,36 @@ check_and_handle_port() {
                         print_warning "Detected existing instance of our application"
                         print_status "Automatically killing existing application instance (PID: $pid)..."
                         
+                        # Try graceful termination first
                         if kill "$pid" 2>/dev/null; then
-                            print_success "Successfully killed process $pid"
-                            # Wait a moment for the port to be released
-                            sleep 2
+                            print_success "Sent termination signal to process $pid"
+                            
+                            # Wait up to 10 seconds for graceful shutdown
+                            local count=0
+                            while [ $count -lt 10 ]; do
+                                if ! kill -0 "$pid" 2>/dev/null; then
+                                    print_success "Process $pid terminated gracefully"
+                                    break
+                                fi
+                                sleep 1
+                                count=$((count + 1))
+                            done
+                            
+                            # If process is still running, force kill it
+                            if kill -0 "$pid" 2>/dev/null; then
+                                print_warning "Process $pid still running, forcing termination..."
+                                if kill -9 "$pid" 2>/dev/null; then
+                                    print_success "Forcefully killed process $pid"
+                                    sleep 1
+                                else
+                                    print_error "Failed to force kill process $pid"
+                                    return 1
+                                fi
+                            fi
+                            
+                            # Wait additional time for port to be released
+                            sleep 3
+                            
                             # Verify port is now free
                             if command -v ss &> /dev/null; then
                                 remaining=$(ss -tuln | grep ":$port " || true)
@@ -144,6 +230,13 @@ check_and_handle_port() {
                                 print_success "Port $port is now available"
                             else
                                 print_warning "Port $port may still be in use"
+                                # Try to find and kill any remaining processes
+                                local remaining_pids=$(lsof -ti:$port 2>/dev/null || true)
+                                if [ -n "$remaining_pids" ]; then
+                                    print_status "Found remaining processes on port $port, force killing..."
+                                    echo "$remaining_pids" | xargs -r kill -9 2>/dev/null || true
+                                    sleep 2
+                                fi
                             fi
                         else
                             print_error "Failed to kill process $pid"
@@ -263,6 +356,9 @@ done
 print_status "Starting run process..."
 print_status "Build type: $BUILD_TYPE"
 echo
+
+# Perform comprehensive cleanup of any existing instances
+force_cleanup_app_instances
 
 # Ensure the application is built
 ensure_build "$BUILD_TYPE"

@@ -1,6 +1,6 @@
 #include "003-Components/VoiceRecorder.h"
 #include "003-Components/Button.h"
-#include "000-Server/Whisper/WhisperAi.h"
+#include "999-ExternalServices/WhisperCliService.h"
 #include <Wt/WApplication.h>
 #include <Wt/WJavaScript.h>
 #include <Wt/WTemplate.h>
@@ -22,7 +22,8 @@ VoiceRecorder::VoiceRecorder()
     js_signal_audio_widget_has_media_(this, "audioWidgetHasMedia"),
     is_audio_supported_(false),
     is_microphone_available_(false),
-    is_enabled_(true)
+    is_enabled_(true),
+    transcription_in_progress_(false)
 {
     // No external dependencies needed - using built-in WAV encoding
     
@@ -30,16 +31,11 @@ VoiceRecorder::VoiceRecorder()
         std::cout << "Voice recording support status: " << (is_supported ? "Supported" : "Not Supported") << std::endl;
         is_audio_supported_ = is_supported; 
             if (is_supported) {
-                recording_info_->addNew<Wt::WText>("✓ Browser supports audio recording")->setStyleClass("text-green-500");
+                // No UI messages - keep display clean for transcription only
                 enable();
             }else {
-                Wt::WString temp = R"(
-                    <div class='bg-surface text-red-500 p-2 rounded-radius border border-outline'>Audio recording is not supported in your browser.</div>
-                    <div class='text-sm'>Using a modern browser (Chrome, Firefox, Edge) is recommended.</div>
-                    <div class='text-sm'>Check your browser's console for more details.</div>
-                    <div class='text-sm'>Make sure your microphone is connected.</div>
-                    )";
-                recording_info_->addNew<Wt::WTemplate>(temp);
+                // Show error message in transcription area if audio not supported
+                transcription_display_->setText("Audio recording is not supported in your browser. Please use a modern browser (Chrome, Firefox, Edge) and ensure your microphone is connected.");
                 disable();
         }
     });
@@ -47,11 +43,11 @@ VoiceRecorder::VoiceRecorder()
         std::cout << "Microphone availability status: " << (is_available ? "Available" : "Not Available") << std::endl;
         is_microphone_available_ = is_available;
         if(is_available) {
-            recording_info_->addNew<Wt::WText>("✓ Microphone is available")->setStyleClass("text-green-500");
+            // No UI messages - keep display clean for transcription only
             enable();
         } else {
-            recording_info_->addNew<Wt::WText>("𐄂 No microphone detected")->setStyleClass("text-red-500");
-
+            // Show error message in transcription area if microphone not available
+            transcription_display_->setText("No microphone detected. Please connect a microphone and refresh the page.");
             disable();
         }
     });
@@ -59,16 +55,14 @@ VoiceRecorder::VoiceRecorder()
         std::cout << "Audio widget media status: " << (has_media ? "Has Media" : "No Media") << std::endl;
         if (has_media) {
             uploadFile();
-            // Start automatic transcription after upload
-            transcribeCurrentAudio();
+            // Note: transcription will be started from onFileUploaded() after file is saved
         }
     });
 
     setupUI();
     setupJavaScriptRecorder();
-    initializeWhisper();
-    // Initialize the recorder when the DOM is ready
-    doJavaScript("setTimeout(function() { if (" + jsRef() + ") { " + jsRef() + ".init(); } }, 200);");
+    // Initialize the recorder when the DOM is ready - but don't block UI loading
+    doJavaScript("setTimeout(function() { if (" + jsRef() + ") { " + jsRef() + ".initAsync(); } }, 2000);");
 }
 
 VoiceRecorder::~VoiceRecorder()
@@ -78,30 +72,32 @@ VoiceRecorder::~VoiceRecorder()
         recording_timer_->stop();
     }
     
-    // Clean up background thread if it's still running
-    if (transcription_thread_.get_id() != std::this_thread::get_id() &&
-        transcription_thread_.joinable()) {
-        transcription_thread_.join();
-    }
+    // No thread cleanup needed since we use detached threads
 }
 
 void VoiceRecorder::setupUI()
 {
     clear();
     
-    auto widget_wrapper = addNew<Wt::WContainerWidget>();
-    widget_wrapper->setStyleClass("space-y-2 pt-2 flex items-center border border-outline relative rounded-radius m-5 relative w-[500px]");
+    // Container for voice recorder functionality
+    auto main_wrapper = addNew<Wt::WContainerWidget>();
+    main_wrapper->setStyleClass("w-full max-w-2xl mx-auto p-4");
 
-    auto debug_wrapper = addNew<Wt::WContainerWidget>();
-    debug_wrapper->setStyleClass("space-y-2 flex items-center");
+    // Control elements - compact but functional
+    auto controls_container = main_wrapper->addNew<Wt::WContainerWidget>();
+    controls_container->setStyleClass("flex flex-col space-y-4 mb-6");
     
-    // Status indicator
-    status_text_ = widget_wrapper->addNew<Wt::WText>("Ready to record audio");
-    status_text_->addStyleClass("text-lg text-on-surface-variant absolute -top-4 left-3 bg-surface");
+    // Status indicator - compact display
+    status_text_ = controls_container->addNew<Wt::WText>("Ready to record audio");
+    status_text_->setStyleClass("text-sm text-gray-600 mb-2");
 
-    // Start recording button
+    // Recording controls in a horizontal layout
+    auto recording_controls = controls_container->addNew<Wt::WContainerWidget>();
+    recording_controls->setStyleClass("flex items-center space-x-4");
+
+    // Start/Stop recording button - prominent but compact
     microphone_svg_ = std::string(Wt::WString::tr("app:microphone-svg").toUTF8());
-    play_pause_btn_ = widget_wrapper->addNew<Button>(microphone_svg_, "m-1.5 text-md ", PenguinUiWidgetTheme::BtnSuccessAction);
+    play_pause_btn_ = recording_controls->addNew<Button>(microphone_svg_, "text-lg", PenguinUiWidgetTheme::BtnSuccessAction);
     play_pause_btn_->clicked().connect(this, [=]
     {
         if(!is_recording_) {
@@ -111,29 +107,35 @@ void VoiceRecorder::setupUI()
         }
     });
 
-    audio_player_ = widget_wrapper->addNew<Wt::WAudio>();
+    // Audio player - compact controls
+    audio_player_ = recording_controls->addNew<Wt::WAudio>();
     audio_player_->setOptions(Wt::PlayerOption::Controls);
-    audio_player_->setStyleClass("grow w-full p-2");
-    audio_player_->setAlternativeContent(std::make_unique<Wt::WText>("You have no HTML5 Audio!"));
+    audio_player_->setAlternativeContent(std::make_unique<Wt::WText>("Audio player not supported"));
+    audio_player_->setStyleClass("max-w-xs");
 
-    // Removed upload and transcribe buttons - transcription now happens automatically
+    // Recording timer info
+    recording_info_ = controls_container->addNew<Wt::WContainerWidget>();
+    recording_info_->setStyleClass("text-xs text-gray-500");
     
-    recording_info_ = debug_wrapper->addNew<Wt::WContainerWidget>();
-    recording_info_->setStyleClass("flex flex-col space-y-2");
     
-    // Transcription display area
-    transcription_display_ = debug_wrapper->addNew<Wt::WTextArea>();
-    transcription_display_->setStyleClass("w-full h-32 p-2 border border-outline rounded-radius bg-surface text-on-surface");
-    transcription_display_->setPlaceholderText("Transcribed text will appear here...");
-    transcription_display_->setReadOnly(true);
-     
-    file_upload_ = debug_wrapper->addNew<Wt::WFileUpload>();
-    file_upload_->setStyleClass("bg-white mb-2");
-    // file_upload_->hide();
+    file_upload_ = addNew<Wt::WFileUpload>();
+    file_upload_->setStyleClass("text-sm hidden");
 
     // Connect file upload signal
     file_upload_->uploaded().connect(this, &VoiceRecorder::onFileUploaded);
     file_upload_->fileTooLarge().connect(this, &VoiceRecorder::onFileTooLarge);
+    
+    // MAIN DISPLAY: Prominent transcription output
+    auto transcription_container = main_wrapper->addNew<Wt::WContainerWidget>();
+    transcription_container->setStyleClass("border-t pt-6");
+    
+    auto transcription_label = transcription_container->addNew<Wt::WText>("Transcription:");
+    transcription_label->setStyleClass("text-lg font-semibold text-gray-800 block mb-3");
+    
+    transcription_display_ = transcription_container->addNew<Wt::WTextArea>();
+    transcription_display_->setStyleClass("w-full min-h-[200px] p-4 border border-outline rounded-lg bg-surface text-on-surface text-base leading-relaxed");
+    transcription_display_->setPlaceholderText("Audio transcription will appear here...");
+    transcription_display_->setReadOnly(true);
     
     // Setup recording timer
     recording_timer_->setInterval(std::chrono::milliseconds(1000)); // Update every second
@@ -194,15 +196,19 @@ void VoiceRecorder::onFileUploaded()
         std::string audioDir = createAudioFilesDirectory();
         
         if (!audioDir.empty()) {
-            // Generate unique filename to avoid conflicts
+            // Generate unique filename to avoid conflicts - force new filename each time
             std::string uniqueFileName = generateUniqueFileName(clientFileName);
             std::string permanentPath = audioDir + "/" + uniqueFileName;
             
             // Save the uploaded file to the permanent location
             if (saveAudioFile(tempFileName, permanentPath)) {
+                // Update current audio file path for this recording
                 current_audio_file_ = permanentPath;
                 status_text_->setText("Audio file saved: " + uniqueFileName);
                 std::cout << "Audio file saved: " << permanentPath << std::endl;
+                
+                // Clear any previous transcription to avoid showing old results
+                transcription_display_->setText("⏳ Transcribing audio, please wait...");
                 
                 // Start automatic transcription in background
                 transcribeCurrentAudio();
@@ -212,11 +218,19 @@ void VoiceRecorder::onFileUploaded()
             }
         } else {
             status_text_->setText("Error: Could not create audio-files directory");
-            // Fallback to using temp file
+            // Fallback to using temp file with unique name
             current_audio_file_ = tempFileName;
+            std::cout << "Using temp file for transcription: " << tempFileName << std::endl;
+            
+            // Clear any previous transcription to avoid showing old results
+            transcription_display_->setText("⏳ Transcribing audio, please wait...");
+            
             // Start automatic transcription even with temp file
             transcribeCurrentAudio();
         }
+    } else {
+        status_text_->setText("Error: No file received for upload");
+        std::cout << "Error: tempFileName is empty" << std::endl;
     }
 }
 
@@ -362,8 +376,28 @@ void VoiceRecorder::setupJavaScriptRecorder()
             }
 
             )" + js_signal_voice_recording_supported_.createCall({"this.isSupported"}) + R"(
+        }
+    )");
 
-            // Check microphone availability
+    // Async initialization function - doesn't block UI loading
+    setJavaScriptMember("initAsync", R"(
+        function() {
+            console.log('Async initializing audio recording...');
+            console.log('AudioContext available:', 'AudioContext' in window || 'webkitAudioContext' in window);
+            console.log('getUserMedia available:', navigator.mediaDevices && 'getUserMedia' in navigator.mediaDevices);
+            
+            if (('AudioContext' in window || 'webkitAudioContext' in window) && 
+                navigator.mediaDevices && 'getUserMedia' in navigator.mediaDevices) {
+                this.isSupported = true;
+                console.log('Audio recording supported');
+            } else {
+                console.log('Audio recording not supported');
+                this.isSupported = false;
+            }
+
+            )" + js_signal_voice_recording_supported_.createCall({"this.isSupported"}) + R"(
+
+            // Check microphone availability asynchronously
             console.log('Checking microphone availability...');
             navigator.mediaDevices.getUserMedia({ audio: true })
                 .then(function(stream) {
@@ -519,50 +553,48 @@ void VoiceRecorder::setupJavaScriptRecorder()
             self.audioUrl = URL.createObjectURL(self.recordedBlob);
             console.log('Created audio URL:', self.audioUrl);
             
-            // Update UI elements
-            setTimeout(function() {
-                self.audioElement = document.getElementById(')" + audio_player_->id() + R"(');
-                console.log('Audio element:', self.audioElement);
-   
-                if (self.audioElement) {
-                    self.audioElement.src = self.audioUrl;
-                    self.audioElement.load();
-                    console.log('Audio source set on WT audio widget:', self.audioUrl);
-                } else {
-                    console.error('Audio element not found with ID: )" + audio_player_->id() + R"(');
-                }
-                
-                // Set the recorded audio file to the file upload widget
-                var fileUploadElement = document.getElementById(')" + file_upload_->id() + R"(');
-                if (fileUploadElement) {
-                    var fileInput = fileUploadElement.querySelector('input[type="file"]');
-                    if (fileInput) {
-                        // Create a File object from the WAV blob
-                        var audioFile = new File([self.recordedBlob], 'recorded_audio_16khz_mono.wav', { 
-                            type: 'audio/wav',
-                            lastModified: Date.now()
-                        });
-                        
-                        // Create a DataTransfer object to set the file
-                        var dataTransfer = new DataTransfer();
-                        dataTransfer.items.add(audioFile);
-                        fileInput.files = dataTransfer.files;
-                        
-                        // Trigger the change event to notify WT
-                        var changeEvent = new Event('change', { bubbles: true });
-                        fileInput.dispatchEvent(changeEvent);
-                        
-                        console.log('16kHz WAV file set to upload widget:', audioFile.name, audioFile.size, 'bytes');
-                        )" + js_signal_audio_widget_has_media_.createCall({"true"}) + R"(
+            // Update UI elements synchronously to ensure proper sequencing
+            self.audioElement = document.getElementById(')" + audio_player_->id() + R"(');
+            console.log('Audio element:', self.audioElement);
+
+            if (self.audioElement) {
+                self.audioElement.src = self.audioUrl;
+                self.audioElement.load();
+                console.log('Audio source set on WT audio widget:', self.audioUrl);
+            } else {
+                console.error('Audio element not found with ID: )" + audio_player_->id() + R"(');
+            }
+            
+            // Set the recorded audio file to the file upload widget synchronously
+            var fileUploadElement = document.getElementById(')" + file_upload_->id() + R"(');
+            if (fileUploadElement) {
+                var fileInput = fileUploadElement.querySelector('input[type="file"]');
+                if (fileInput) {
+                    // Create a File object from the WAV blob
+                    var audioFile = new File([self.recordedBlob], 'recorded_audio_16khz_mono.wav', { 
+                        type: 'audio/wav',
+                        lastModified: Date.now()
+                    });
                     
-                    } else {
-                        console.error('File input element not found in:', fileUploadElement);
-                        )" + js_signal_audio_widget_has_media_.createCall({"false"}) + R"(
-                    }
+                    // Create a DataTransfer object to set the file
+                    var dataTransfer = new DataTransfer();
+                    dataTransfer.items.add(audioFile);
+                    fileInput.files = dataTransfer.files;
+                    
+                    // Trigger the change event to notify WT
+                    var changeEvent = new Event('change', { bubbles: true });
+                    fileInput.dispatchEvent(changeEvent);
+                    
+                    console.log('16kHz WAV file set to upload widget:', audioFile.name, audioFile.size, 'bytes');
+                    )" + js_signal_audio_widget_has_media_.createCall({"true"}) + R"(
+                
                 } else {
-                    console.error('File upload element not found with ID: )" + file_upload_->id() + R"(');
+                    console.error('File input element not found in:', fileUploadElement);
+                    )" + js_signal_audio_widget_has_media_.createCall({"false"}) + R"(
                 }
-            }, 100);
+            } else {
+                console.error('File upload element not found with ID: )" + file_upload_->id() + R"(');
+            }
             
             // Close audio context
             if (self.audioContext) {
@@ -576,77 +608,70 @@ void VoiceRecorder::setupJavaScriptRecorder()
     )");
 }
 
-void VoiceRecorder::initializeWhisper()
-{
-    auto& whisper = WhisperAi::getInstance();
-    if (whisper.initialize()) {
-        std::cout << "Whisper singleton initialized with ggml-base.en.bin model" << std::endl;
-        recording_info_->addNew<Wt::WText>("✓ WhisperAi instantiated successfully")->setStyleClass("text-green-500");
-    } else {
-        std::cout << "Failed to initialize Whisper: " << whisper.getLastError() << std::endl;
-        recording_info_->addNew<Wt::WText>("WhisperAi initialization failed. Transcription disabled.")->setStyleClass("text-red-500");
-    }
-}
-
 void VoiceRecorder::transcribeCurrentAudio()
 {
-    auto& whisper = WhisperAi::getInstance();
-    if (!whisper.isInitialized()) {
-        status_text_->setText("Whisper not initialized");
-        return;
-    }
-    
     if (current_audio_file_.empty()) {
-        status_text_->setText("No audio file to transcribe");
+        transcription_display_->setText("No audio file to transcribe");
         return;
     }
     
-    status_text_->setText("Transcribing audio...");
+    // Check if transcription is already in progress
+    if (transcription_in_progress_) {
+        std::cout << "Transcription already in progress, ignoring second request" << std::endl;
+        return;
+    }
+    
+    // Log the file being transcribed for debugging
+    std::cout << "Starting transcription for file: " << current_audio_file_ << std::endl;
+    
+    // Show loading message in transcription area
     transcription_display_->setText("⏳ Transcribing audio, please wait...");
+    
+    // Mark transcription as in progress
+    transcription_in_progress_ = true;
     
     // Get the application instance to enable server push
     Wt::WApplication* app = Wt::WApplication::instance();
     app->enableUpdates(true);
     
-    // Clean up previous thread if it exists
-    if (transcription_thread_.joinable()) {
-        transcription_thread_.join();
-    }
+    // Capture the current audio file path to avoid race conditions
+    std::string audio_file_to_transcribe = current_audio_file_;
     
-    // Start transcription in background thread
-    transcription_thread_ = std::thread(
-        std::bind(&VoiceRecorder::performTranscriptionInBackground, this, app)
-    );
+    // Create and detach a new thread for each transcription
+    // No need to manage thread lifetime - it cleans up automatically
+    std::thread([this, app, audio_file_to_transcribe]() {
+        this->performTranscriptionInBackground(app, audio_file_to_transcribe);
+    }).detach();
 }
 
-void VoiceRecorder::performTranscriptionInBackground(Wt::WApplication* app)
+void VoiceRecorder::performTranscriptionInBackground(Wt::WApplication* app, const std::string& audio_file_path)
 {
     std::string transcription_result;
     std::string error_message;
-    size_t queue_size = 0;
+    
+    std::cout << "Background transcription started for: " << audio_file_path << std::endl;
     
     try {
-        auto& whisper = WhisperAi::getInstance();
+        // Create WhisperCliService only when needed
+        auto whisper_client = std::make_unique<WhisperCliService>();
         
-        // Show queue position if there are other tasks
-        queue_size = whisper.getQueueSize();
-        if (queue_size > 0) {
-            // Update UI with queue information
-            Wt::WApplication::UpdateLock uiLock(app);
-            if (uiLock) {
-                status_text_->setText("Queued for transcription (position: " + std::to_string(queue_size + 1) + ")");
-                app->triggerUpdate();
+        // Build paths relative to the current working directory (build/release or build/debug)
+        std::string whisper_executable_path = "./whisper_service";  // In current build directory
+        std::string model_path = "../../models/ggml-base.en.bin";   // Relative to build directory
+        
+        if (!whisper_client->initialize(whisper_executable_path, model_path)) {
+            error_message = "Failed to initialize Whisper service: " + whisper_client->getLastError();
+        } else {
+            std::cout << "WhisperCliService initialized successfully" << std::endl;
+            
+            // Use the synchronous API to transcribe the specific file
+            transcription_result = whisper_client->transcribeFile(audio_file_path);
+            
+            // Check if the result indicates an error
+            if (transcription_result.find("ERROR:") == 0) {
+                error_message = transcription_result.substr(6); // Remove "ERROR:" prefix
+                transcription_result.clear();
             }
-        }
-        
-        // Use the new async API - this will queue the task and return a future
-        auto future = whisper.transcribeFileAsync(current_audio_file_);
-        
-        // Wait for the result (this blocks this background thread but not the UI)
-        transcription_result = future.get();
-        
-        if (transcription_result.empty()) {
-            error_message = whisper.getLastError();
         }
     } catch (const std::exception& e) {
         error_message = "Exception during transcription: " + std::string(e.what());
@@ -656,7 +681,7 @@ void VoiceRecorder::performTranscriptionInBackground(Wt::WApplication* app)
     Wt::WApplication::UpdateLock uiLock(app);
     if (uiLock) {
         if (!transcription_result.empty()) {
-            // Success
+            // Success - only show the transcription text, no status messages
             current_transcription_ = transcription_result;
             transcription_display_->setText(transcription_result);
             status_text_->setText("Transcription complete ✓");
@@ -672,13 +697,13 @@ void VoiceRecorder::performTranscriptionInBackground(Wt::WApplication* app)
                 error_text += ": " + error_message;
             }
             
-            transcription_display_->setText("❌ " + error_text);
-            status_text_->setText(error_text);
+            transcription_display_->setText(error_text);
             
             std::cout << "Transcription failed: " << error_message << std::endl;
         }
         
-        // Removed transcribe button re-enable since button was removed
+        // Mark transcription as completed
+        transcription_in_progress_ = false;
         
         // Trigger UI update
         app->triggerUpdate();
@@ -686,6 +711,8 @@ void VoiceRecorder::performTranscriptionInBackground(Wt::WApplication* app)
         // Disable server push when done
         app->enableUpdates(false);
     }
+    
+    // Thread will be automatically cleaned up when this function exits
 }
 
 std::string VoiceRecorder::getTranscription() const

@@ -36,7 +36,8 @@ FetchContent_MakeAvailable(whisper)
 
 # ./app --docroot ../ –config ./wt_config.xml --http-address 0.0.0.0 --http-port 9020
 
-set(SOURCES
+# Main application sources (without WhisperAi.cpp since we're using external service)
+set(MAIN_APP_SOURCES
     ${SOURCE_DIR}/main.cpp
     
     ${SOURCE_DIR}/000-Server/Server.cpp
@@ -51,7 +52,7 @@ set(SOURCES
     ${SOURCE_DIR}/003-Components/Button.cpp
     ${SOURCE_DIR}/003-Components/MonacoEditor.cpp
     ${SOURCE_DIR}/003-Components/VoiceRecorder.cpp
-    ${SOURCE_DIR}/000-Server/Whisper/WhisperAi.cpp
+    ${SOURCE_DIR}/999-ExternalServices/WhisperCliService.cpp
     ${SOURCE_DIR}/003-Components/BigWorkWidget.cpp
     
     ${SOURCE_DIR}/004-Dbo/Session.cpp
@@ -72,10 +73,15 @@ set(SOURCES
     
     ${SOURCE_DIR}/101-Examples/BroadcastExample.cpp
     ${SOURCE_DIR}/101-Examples/CheckboxBroadcastExample.cpp
-
 )
 
-add_executable(${PROJECT_NAME} ${SOURCES})
+# Whisper service sources
+set(WHISPER_SERVICE_SOURCES
+    ${SOURCE_DIR}/999-ExternalServices/whisper_service_main.cpp
+)
+
+# Build main application
+add_executable(${PROJECT_NAME} ${MAIN_APP_SOURCES})
 
 target_link_libraries(${PROJECT_NAME} 
     wthttp
@@ -86,12 +92,26 @@ target_link_libraries(${PROJECT_NAME}
     boost_regex
     cpr::cpr
     nlohmann_json::nlohmann_json
+)
+
+# Build whisper service executable
+add_executable(whisper_service ${WHISPER_SERVICE_SOURCES})
+
+target_link_libraries(whisper_service 
     whisper
+    nlohmann_json::nlohmann_json
 )
 
 # Set runtime library path so the executable can find the shared libraries
 set_target_properties(${PROJECT_NAME} PROPERTIES
-    INSTALL_RPATH "${CMAKE_CURRENT_BINARY_DIR}/_deps/cpr-build/cpr:${CMAKE_CURRENT_BINARY_DIR}/_deps/whisper-build"
+    INSTALL_RPATH "${CMAKE_CURRENT_BINARY_DIR}/_deps/cpr-build/cpr"
+    BUILD_WITH_INSTALL_RPATH TRUE
+    INSTALL_RPATH_USE_LINK_PATH TRUE
+)
+
+# Set runtime library path for whisper service
+set_target_properties(whisper_service PROPERTIES
+    INSTALL_RPATH "${CMAKE_CURRENT_BINARY_DIR}/_deps/whisper-build"
     BUILD_WITH_INSTALL_RPATH TRUE
     INSTALL_RPATH_USE_LINK_PATH TRUE
 )
@@ -99,18 +119,19 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
 # Add pthread for threading support (if not already present)
 find_package(Threads REQUIRED)
 target_link_libraries(${PROJECT_NAME} Threads::Threads)
+target_link_libraries(whisper_service Threads::Threads)
 
 # Platform-specific libraries
 if(APPLE)
-    target_link_libraries(${PROJECT_NAME} "-framework Accelerate")
+    target_link_libraries(whisper_service "-framework Accelerate")
 endif()
 
 if(UNIX AND NOT APPLE)
-    target_link_libraries(${PROJECT_NAME} m dl)
+    target_link_libraries(whisper_service m dl)
 endif()
 
 add_custom_target(run
-    COMMAND ${CMAKE_COMMAND} -E env LD_LIBRARY_PATH=${CMAKE_CURRENT_BINARY_DIR}/_deps/cpr-build/cpr:${CMAKE_CURRENT_BINARY_DIR}/_deps/whisper-build:$ENV{LD_LIBRARY_PATH} $<TARGET_FILE:${PROJECT_NAME}> ${RLIB}
+    COMMAND ${CMAKE_COMMAND} -E env LD_LIBRARY_PATH=${CMAKE_CURRENT_BINARY_DIR}/_deps/cpr-build/cpr:$ENV{LD_LIBRARY_PATH} $<TARGET_FILE:${PROJECT_NAME}> ${RLIB}
     DEPENDS ${PROJECT_NAME}
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
     COMMENT "Running ${PROJECT_NAME} with proper library paths"
