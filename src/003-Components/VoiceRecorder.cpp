@@ -658,7 +658,7 @@ void VoiceRecorder::performTranscriptionInBackground(Wt::WApplication* app, cons
         
         // Build paths relative to the current working directory (build/release or build/debug)
         std::string whisper_executable_path = "./whisper_service";  // In current build directory
-        std::string model_path = "../../models/ggml-base.en.bin";   // Relative to build directory
+        std::string model_path = "/apps/cv/models/ggml-base.en.bin";   // Absolute path for Docker container
         
         if (!whisper_client->initialize(whisper_executable_path, model_path)) {
             error_message = "Failed to initialize Whisper service: " + whisper_client->getLastError();

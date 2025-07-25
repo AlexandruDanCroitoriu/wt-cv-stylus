@@ -1,0 +1,44 @@
+FROM ubuntu:22.04
+
+# Set environment variables to avoid interactive prompts
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Copy the dependency installation script
+COPY ./scripts/ubuntu-install-dependencies.sh /tmp/ubuntu-install-dependencies.sh
+
+# Make the script executable and run it
+RUN chmod +x /tmp/ubuntu-install-dependencies.sh && \
+    /tmp/ubuntu-install-dependencies.sh && \
+    rm /tmp/ubuntu-install-dependencies.sh
+
+# Build step - Clone and build Wt framework
+RUN git clone --branch 4.11-release https://github.com/emweb/wt.git wt 
+RUN cd wt/ && mkdir build
+RUN cd wt/build/ && cmake ../ \
+-DENABLE_SQLITE=ON \
+-DENABLE_POSTGRES=ON \
+-DBUILD_EXAMPLES=OFF \
+-DBUILD_TESTS=OFF \
+-DENABLE_LIBWTTEST=OFF
+
+RUN cd wt/build/ && make -j$(nproc)
+RUN cd wt/build/ && make install
+RUN rm -rf wt
+
+# Copy Wt libraries to standard location
+RUN cp /usr/local/lib/libwt*.so.* /usr/lib/
+
+# Set PATH to include the virtual environment (matching the script setup)
+ENV PATH="/opt/venv/bin:$PATH"
+
+# Copy application files
+COPY ./resources /apps/cv/resources
+COPY ./src /apps/cv/src
+COPY ./CMakeLists.txt /apps/cv/CMakeLists.txt
+COPY ./wt_config.xml /apps/cv/wt_config.xml
+
+# Build the application
+RUN mkdir -p /apps/cv/build/release
+WORKDIR /apps/cv/build/release
+RUN cmake -DCMAKE_BUILD_TYPE=Release ../..
+RUN make

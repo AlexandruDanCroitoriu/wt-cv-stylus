@@ -1,0 +1,25 @@
+FROM wt_builder AS builder
+
+FROM ubuntu
+
+RUN apt-get update && apt-get install -y curl gnupg \
+    && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y nodejs
+
+# copy libraries and application from builder 
+COPY --from=builder /usr/lib/libwt*.so.* /usr/lib/
+COPY --from=builder /usr/include/boost/* /usr/include/boost/
+COPY --from=builder /usr/lib/x86_64-linux-gnu/libboost* /usr/lib/x86_64-linux-gnu/
+COPY --from=builder /usr/lib/x86_64-linux-gnu/libicu* /usr/lib/x86_64-linux-gnu/
+
+COPY --from=builder ./apps/cv /apps/cv
+
+# Download Whisper model
+RUN mkdir -p /apps/cv/models && \
+    cd /apps/cv/models && \
+    curl -L -o ggml-base.en.bin https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en.bin
+
+WORKDIR /apps/cv/build/release
+
+EXPOSE 9020
+CMD ["./app", "--docroot", "../../", "-c", "../../wt_config.xml", "--http-address", "0.0.0.0", "--http-port", "9020"]

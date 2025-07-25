@@ -66,7 +66,7 @@ bool WhisperAi::initialize() {
     
 
     std::string model_path;
-    std::string full_path = "../../models/ggml-base.en.bin";
+    std::string full_path = "/apps/cv/models/ggml-base.en.bin";
     if (std::ifstream(full_path).good()) {
         model_path = full_path;
         std::cout << getCurrentTimestamp() << "Found Whisper model: " << full_path << std::endl;

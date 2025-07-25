@@ -1,0 +1,14 @@
+FROM jenkins/jenkins:jdk21
+
+USER root
+RUN apt-get update && apt-get install -y docker.io
+
+RUN if ! getent group docker; then \
+       GID=$(awk -F: '{if ($3 >= 1000 && $3 < 65534) print $3}' /etc/group | sort -n | tail -1); \
+       groupadd -g $((GID+1)) docker; \
+    fi
+RUN usermod -aG docker jenkins
+
+RUN touch /var/run/docker.sock && chown root:docker /var/run/docker.sock
+
+USER jenkins

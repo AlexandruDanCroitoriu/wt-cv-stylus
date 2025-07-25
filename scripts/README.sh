@@ -25,7 +25,10 @@ echo -e "    ${YELLOW}-${NC} Unified run script for both debug and release"
 echo -e "    ${YELLOW}-${NC} Automatically builds if needed"
 echo -e "    ${YELLOW}-${NC} Automatically kills existing instances on port 9020"
 echo -e "    ${YELLOW}-${NC} Defaults to debug if no type specified"
-echo ""
+echo ""0.
+
+
+.0
 echo -e "${BOLD}${GREEN}OTHER SCRIPTS:${NC}"
 echo -e "  ${CYAN}./scripts/clone_libraries.sh${NC}             - Clone external libraries"
 echo -e "  ${CYAN}./scripts/memory_analyzer.sh${NC}             - Single memory analysis (used by monitor)"
