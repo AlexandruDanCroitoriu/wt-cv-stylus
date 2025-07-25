@@ -48,34 +48,42 @@ set(MAIN_APP_SOURCES
     ${SOURCE_DIR}/002-Theme/ThemeSwitcher.cpp
     ${SOURCE_DIR}/002-Theme/DarkModeToggle.cpp
     
-    ${SOURCE_DIR}/003-Components/ComponentsDisplay.cpp
     ${SOURCE_DIR}/003-Components/Button.cpp
     ${SOURCE_DIR}/003-Components/MonacoEditor.cpp
     ${SOURCE_DIR}/003-Components/VoiceRecorder.cpp
-    ${SOURCE_DIR}/999-ExternalServices/WhisperCliService.cpp
     ${SOURCE_DIR}/003-Components/BigWorkWidget.cpp
     
     ${SOURCE_DIR}/004-Dbo/Session.cpp
     ${SOURCE_DIR}/004-Dbo/Tables/User.cpp
     ${SOURCE_DIR}/004-Dbo/Tables/Permission.cpp
-
+    
     ${SOURCE_DIR}/005-Auth/AuthWidget.cpp
     ${SOURCE_DIR}/005-Auth/RegistrationView.cpp
     ${SOURCE_DIR}/005-Auth/UserDetailsModel.cpp
-
+    
     ${SOURCE_DIR}/006-Navigation/Navigation.cpp
     
     ${SOURCE_DIR}/007-UserSettings/UserSettings.cpp
-
-    ${SOURCE_DIR}/008-AboutMe/AboutMe.cpp
-
-    ${SOURCE_DIR}/010-StarWarsApi/StarWarsApi.cpp
     
+    ${SOURCE_DIR}/008-ComponentsDisplay/ComponentsDisplay.cpp
+    
+    
+    ${SOURCE_DIR}/101-Examples/StarWarsApi.cpp
     ${SOURCE_DIR}/101-Examples/BroadcastExample.cpp
     ${SOURCE_DIR}/101-Examples/CheckboxBroadcastExample.cpp
-)
+    
+    ${SOURCE_DIR}/999-ExternalServices/WhisperCliService.cpp
 
-# Whisper service sources
+    ${SOURCE_DIR}/999-Stylus/Stylus.cpp
+    ${SOURCE_DIR}/999-Stylus/000-Utils/StylusState.cpp
+    ${SOURCE_DIR}/999-Stylus/000-Utils/StylusPanelWrapper.cpp
+    ${SOURCE_DIR}/999-Stylus/000-Utils/XMLFileBrain.cpp
+    ${SOURCE_DIR}/999-Stylus/000-Utils/tinyxml2/tinyxml2.cpp
+    ${SOURCE_DIR}/999-Stylus/005-ImagesManager/ImagesManager.cpp
+
+    )
+    
+    # Whisper service sources
 set(WHISPER_SERVICE_SOURCES
     ${SOURCE_DIR}/999-ExternalServices/whisper_service_main.cpp
 )

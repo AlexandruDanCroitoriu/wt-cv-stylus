@@ -1,0 +1,495 @@
+/**
+ * @file UIManager.h
+ * @brief Terminal user interface management using ncurses
+ * 
+ * This file defines the UIManager class which provides comprehensive
+ * terminal UI functionality including layout management, user input
+ * handling, and real-time display updates.
+ * 
+ * @author GitH    /**
+     * @brief Resize script list pane narrower
+     * 
+     * Decreases the width of the script list pane and increases
+     * the width of the output panes proportionally.
+     * 
+     * @return true If resize was successful
+     * @return false If already at minimum width
+     */
+    bool resizeScriptListNarrower();
+
+    /**
+     * @brief Resize output pane 1 wider
+     * 
+     * Increases the width of output pane 1 and decreases
+     * the width of output pane 2.
+     * 
+     * @return true If resize was successful
+     * @return false If already at maximum width
+     */
+    bool resizeOutputPane1Wider();
+
+    /**
+     * @brief Resize output pane 1 narrower
+     * 
+     * Decreases the width of output pane 1 and increases
+     * the width of output pane 2.
+     * 
+     * @return true If resize was successful
+     * @return false If already at minimum width
+     */
+    bool resizeOutputPane1Narrower();
+    
+    // Additional UI management functions can be added here
+};
+
+#endif // UIMANAGER_H
+
+#include "Exceptions.h"
+#include "ProcessManager.h"
+#include <string>
+#include <vector>
+#include <memory>
+#include <ncurses.h>
+
+/**
+ * @brief ncurses color pair identifiers
+ */
+enum class ColorPair {
+    DEFAULT = 1,    ///< Default terminal colors
+    HEADER = 2,     ///< Pane headers (cyan on black)
+    SELECTED = 3,   ///< Selected items (black on yellow)
+    RUNNING = 4,    ///< Running process indicator (green on black)
+    ERROR = 5,      ///< Error messages (red on black)
+    SUCCESS = 6,    ///< Success messages (green on black)
+    STATUS = 7,     ///< Status bar (white on blue)
+    BORDER = 8,     ///< Window borders (white on black)
+    // ANSI color pairs (foreground colors on black background)
+    ANSI_BLACK = 9,     ///< ANSI black text
+    ANSI_RED = 10,      ///< ANSI red text
+    ANSI_GREEN = 11,    ///< ANSI green text
+    ANSI_YELLOW = 12,   ///< ANSI yellow text
+    ANSI_BLUE = 13,     ///< ANSI blue text
+    ANSI_MAGENTA = 14,  ///< ANSI magenta text
+    ANSI_CYAN = 15,     ///< ANSI cyan text
+    ANSI_WHITE = 16,    ///< ANSI white text
+    // ANSI bright colors
+    ANSI_BRIGHT_BLACK = 17,   ///< ANSI bright black text
+    ANSI_BRIGHT_RED = 18,     ///< ANSI bright red text
+    ANSI_BRIGHT_GREEN = 19,   ///< ANSI bright green text
+    ANSI_BRIGHT_YELLOW = 20,  ///< ANSI bright yellow text
+    ANSI_BRIGHT_BLUE = 21,    ///< ANSI bright blue text
+    ANSI_BRIGHT_MAGENTA = 22, ///< ANSI bright magenta text
+    ANSI_BRIGHT_CYAN = 23,    ///< ANSI bright cyan text
+    ANSI_BRIGHT_WHITE = 24    ///< ANSI bright white text
+};
+
+/**
+ * @brief Terminal user interface manager using ncurses
+ * 
+ * The UIManager class provides complete terminal UI management including
+ * window layout, user input handling, real-time content updates, and
+ * visual feedback. It implements the three-pane layout specified in
+ * the design: script list, output pane 1, and output pane 2.
+ * 
+ * Key features:
+ * - Responsive layout that adapts to terminal size
+ * - Real-time output display with scrolling
+ * - Keyboard navigation with vi-style and arrow key support
+ * - Color-coded status indicators
+ * - Help system overlay
+ * - Status bar with system information
+ */
+class UIManager {
+public:
+    /**
+     * @brief Construct a new UI Manager object
+     * 
+     * Initializes ncurses environment and prepares for UI operations.
+     */
+    UIManager();
+
+    /**
+     * @brief Destroy the UI Manager object
+     * 
+     * Cleans up ncurses resources and restores terminal state.
+     */
+    ~UIManager();
+
+    // Delete copy constructor and assignment (resource management)
+    UIManager(const UIManager&) = delete;
+    UIManager& operator=(const UIManager&) = delete;
+
+    /**
+     * @brief Initialize the UI subsystem
+     * 
+     * Sets up ncurses, creates windows, initializes color pairs,
+     * and prepares the terminal for interactive use.
+     * 
+     * @return true If initialization successful
+     * @return false If initialization failed
+     * 
+     * @throws UIException If ncurses initialization fails
+     * @throws UIException If terminal is too small (minimum 80x24)
+     */
+    bool initialize();
+
+    /**
+     * @brief Clean up UI resources
+     * 
+     * Destroys windows, cleans up ncurses, and restores terminal
+     * to its original state.
+     */
+    void cleanup();
+
+    /**
+     * @brief Create the main layout with all panes
+     * 
+     * Calculates window sizes and positions based on terminal dimensions
+     * and creates all UI components including borders and headers.
+     * 
+     * @throws UIException If window creation fails
+     * 
+     * @pre Terminal must be at least 80x24 characters
+     * @post All windows created and positioned correctly
+     */
+    void createLayout();
+
+    /**
+     * @brief Handle terminal resize events
+     * 
+     * Recalculates layout, destroys old windows, and creates new ones
+     * to match the new terminal dimensions.
+     */
+    void handleResize();
+
+    /**
+     * @brief Update the script list display
+     * 
+     * Refreshes the script list pane with current available scripts,
+     * preserving selection highlighting and scroll position.
+     * 
+     * @param scripts Vector of script paths to display
+     */
+    void updateScriptList(const std::vector<std::string>& scripts);
+
+    /**
+     * @brief Update output in the specified pane
+     * 
+     * Adds new output lines to the specified output pane with automatic
+     * scrolling and color coding for different message types.
+     * 
+     * @param paneIndex Target pane (0 or 1)
+     * @param output New output text to append
+     * 
+     * @throws std::invalid_argument If paneIndex is invalid
+     * 
+     * @pre paneIndex must be 0 or 1
+     */
+    void updateOutput(int paneIndex, const std::string& output);
+
+    /**
+     * @brief Update the status bar information
+     * 
+     * Refreshes status bar with current application state including
+     * running processes, system resources, and status messages.
+     * 
+     * @param leftStatus Left section text (process count, time)
+     * @param centerStatus Center section text (active operations)
+     * @param rightStatus Right section text (resources, uptime)
+     */
+    void updateStatus(const std::string& leftStatus, 
+                     const std::string& centerStatus = "",
+                     const std::string& rightStatus = "");
+
+    /**
+     * @brief Get user input from keyboard
+     * 
+     * Non-blocking keyboard input capture with special key handling.
+     * 
+     * @return int Key code (ERR if no input available)
+     */
+    int getInput();
+
+    /**
+     * @brief Highlight the specified script in the list
+     * 
+     * Updates visual highlighting for script selection and ensures
+     * the selected item is visible in the scroll window.
+     * 
+     * @param index Script index to highlight (-1 to clear selection)
+     * 
+     * @pre index must be valid script list index or -1
+     */
+    void highlightScript(int index);
+
+    /**
+     * @brief Switch focus to the specified pane
+     * 
+     * Changes active pane, updates visual indicators, and adjusts
+     * input handling behavior.
+     * 
+     * @param paneIndex Target pane (0=script list, 1=output1, 2=output2)
+     * 
+     * @throws std::invalid_argument If paneIndex is invalid
+     * 
+     * @pre paneIndex must be 0, 1, or 2
+     */
+    void switchPane(int paneIndex);
+
+    /**
+     * @brief Refresh all screen content
+     * 
+     * Forces complete redraw of all windows and content.
+     * Used for recovery from display corruption.
+     */
+    void refresh();
+
+    /**
+     * @brief Show or hide the help overlay
+     * 
+     * Toggles help screen display with keyboard shortcuts
+     * and usage information.
+     */
+    void showHelp();
+
+    /**
+     * @brief Clear the specified output pane
+     * 
+     * Removes all content from the output pane and resets scroll position.
+     * 
+     * @param paneIndex Target pane (0 or 1)
+     * 
+     * @throws std::invalid_argument If paneIndex is invalid
+     * 
+     * @pre paneIndex must be 0 or 1
+     */
+    void clearOutputPane(int paneIndex);
+
+    /**
+     * @brief Scroll output pane up
+     * 
+     * @param paneIndex Target pane (0 or 1)
+     * @param lines Number of lines to scroll (default: 1)
+     * 
+     * @throws std::invalid_argument If paneIndex is invalid
+     */
+    void scrollUp(int paneIndex, int lines = 1);
+
+    /**
+     * @brief Scroll output pane down
+     * 
+     * @param paneIndex Target pane (0 or 1)
+     * @param lines Number of lines to scroll (default: 1)
+     * 
+     * @throws std::invalid_argument If paneIndex is invalid
+     */
+    void scrollDown(int paneIndex, int lines = 1);
+
+    /**
+     * @brief Get current active pane index
+     * 
+     * @return int Active pane index (0=script list, 1=output1, 2=output2)
+     */
+    int getActivePaneIndex() const { return m_activePane; }
+
+    /**
+     * @brief Get current selected script index
+     * 
+     * @return int Selected script index (-1 if none selected)
+     */
+    int getSelectedScriptIndex() const { return m_selectedScript; }
+
+    /**
+     * @brief Check if help is currently visible
+     * 
+     * @return true If help overlay is shown
+     * @return false If help overlay is hidden
+     */
+    bool isHelpVisible() const { return m_helpVisible; }
+
+    /**
+     * @brief Resize script list pane wider
+     * 
+     * Increases the width of the script list pane and decreases
+     * the width of the output panes proportionally.
+     * 
+     * @return true If resize was successful
+     * @return false If already at maximum width
+     */
+    bool resizeScriptListWider();
+
+    /**
+     * @brief Resize script list pane narrower
+     * 
+     * Decreases the width of the script list pane and increases
+     * the width of the output panes proportionally.
+     * 
+     * @return true If resize was successfulh
+     * @return false If already at minimum width
+     */
+    bool resizeScriptListNarrower();
+
+private:
+    // Window pointers
+    WINDOW* m_mainWindow;      ///< Main application window (stdscr)
+    WINDOW* m_scriptListPane;  ///< Script list pane
+    WINDOW* m_outputPane1;     ///< First output pane
+    WINDOW* m_outputPane2;     ///< Second output pane
+    WINDOW* m_statusBar;       ///< Status bar window
+    WINDOW* m_helpWindow;      ///< Help overlay window
+
+    // Layout dimensions
+    int m_terminalWidth;       ///< Current terminal width
+    int m_terminalHeight;      ///< Current terminal height
+    int m_scriptListWidth;     ///< Script list pane width
+    int m_outputPaneWidth;     ///< Output pane width (for compatibility - will be removed)
+    int m_outputPane1Width;    ///< Output pane 1 width
+    int m_outputPane2Width;    ///< Output pane 2 width
+    int m_statusBarHeight;     ///< Status bar height
+    int m_currentScriptListWidthRatio;  ///< Current script list width percentage
+    int m_outputPane1WidthRatio;        ///< Output pane 1 width ratio (of remaining space)
+
+    // UI state
+    int m_selectedScript;      ///< Currently selected script index
+    int m_activePane;          ///< Currently active pane (0=list, 1=out1, 2=out2)
+    bool m_helpVisible;        ///< Help overlay visibility state
+    bool m_initialized;        ///< UI initialization status
+
+    // Scroll positions for output panes
+    int m_scrollPosition[2];   ///< Scroll positions for output panes
+
+    // Script list data
+    std::vector<std::string> m_scriptList;  ///< Current script list
+    int m_scriptListScroll;    ///< Script list scroll position
+
+    // Output buffers for display
+    std::vector<std::string> m_outputBuffer[2];  ///< Output line buffers
+
+    // Constants
+    static constexpr int MIN_TERMINAL_WIDTH = 80;   ///< Minimum terminal width
+    static constexpr int MIN_TERMINAL_HEIGHT = 24;  ///< Minimum terminal height
+    static constexpr int DEFAULT_SCRIPT_LIST_WIDTH_RATIO = 30;  ///< Default script list width percentage
+    static constexpr int MIN_SCRIPT_LIST_WIDTH = 15;  ///< Minimum script list width
+    static constexpr int MAX_SCRIPT_LIST_WIDTH = 60;  ///< Maximum script list width percentage
+    static constexpr int RESIZE_STEP = 5;           ///< Width adjustment step for resizing
+    static constexpr int DEFAULT_OUTPUT_PANE1_RATIO = 50; ///< Default output pane 1 ratio (of remaining space)
+    static constexpr int MIN_OUTPUT_PANE_RATIO = 20;      ///< Minimum output pane ratio
+    static constexpr int MAX_OUTPUT_PANE_RATIO = 80;      ///< Maximum output pane ratio
+    static constexpr int STATUS_BAR_HEIGHT = 1;     ///< Status bar height in lines
+    static constexpr int MAX_OUTPUT_LINES = 1000;   ///< Maximum lines per output buffer
+
+    /**
+     * @brief Initialize ncurses color pairs
+     * 
+     * Sets up all color combinations used in the interface.
+     */
+    void initializeColors();
+
+    /**
+     * @brief Calculate layout dimensions
+     * 
+     * Computes window positions and sizes based on terminal dimensions.
+     */
+    void calculateLayout();
+
+    /**
+     * @brief Draw borders and decorations for all windows
+     */
+    void drawBorders();
+
+    /**
+     * @brief Draw headers and titles for all panes
+     */
+    void drawHeaders();
+
+    /**
+     * @brief Validate pane index parameter
+     * 
+     * @param paneIndex Index to validate
+     * @throws std::invalid_argument If index is out of range
+     */
+    void validatePaneIndex(int paneIndex) const;
+
+    /**
+     * @brief Get base name from full path
+     * 
+     * @param fullPath Full file path
+     * @return std::string Base filename
+     */
+    std::string getBaseName(const std::string& fullPath) const;
+
+    /**
+     * @brief Strip ANSI escape sequences from text
+     * 
+     * @param input Text that may contain ANSI codes
+     * @return std::string Text with ANSI codes removed
+     */
+    std::string stripAnsiCodes(const std::string& input);
+
+    /**
+     * @brief Render text with ANSI color codes to ncurses window
+     * 
+     * Parses ANSI escape sequences and applies corresponding colors
+     * in ncurses, preserving the original color formatting.
+     * 
+     * @param window Target ncurses window
+     * @param text Text with ANSI escape sequences
+     * @param y Y coordinate to start rendering
+     * @param x X coordinate to start rendering
+     * @param maxWidth Maximum width for rendering (truncates if exceeded)
+     */
+    void renderAnsiText(WINDOW* window, const std::string& text, int y, int x, int maxWidth);
+
+    /**
+     * @brief Check if a script list item is a separator
+     * 
+     * @param item Script list item to check
+     * @return bool True if item is a separator
+     */
+    bool isSeparator(const std::string& item);
+
+    /**
+     * @brief Wrap text to fit within specified width
+     * 
+     * @param text Text to wrap
+     * @param maxWidth Maximum line width
+     * @return std::vector<std::string> Lines of wrapped text
+     */
+    std::vector<std::string> wrapText(const std::string& text, int maxWidth);
+
+    /**
+     * @brief Ensure selected item is visible in scroll window
+     */
+    void ensureSelectionVisible();
+
+    /**
+     * @brief Draw the script list content
+     */
+    void drawScriptList();
+
+    /**
+     * @brief Draw output pane content
+     * 
+     * @param paneIndex Pane to draw (0 or 1)
+     */
+    void drawOutputPane(int paneIndex);
+
+    /**
+     * @brief Draw the help overlay
+     */
+    void drawHelpOverlay();
+
+    /**
+     * @brief Update active pane border highlighting
+     */
+    void updateActivePaneBorder();
+
+    /**
+     * @brief Safe window deletion
+     * 
+     * @param window Window pointer to delete (set to nullptr after deletion)
+     */
+    void safeDeleteWindow(WINDOW*& window);
+};
+
+#endif // UIMANAGER_H

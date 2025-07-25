@@ -10,16 +10,33 @@
         "files.associations": {
             "*.md": "markdown",
             "wt_config.xml": "xml",
-            "CMakeLists.txt": "cmake"
+            "CMakeLists.txt": "cmake",
+            "array": "cpp",
+            "memory": "cpp",
+            "future": "cpp",
+            "istream": "cpp",
+            "functional": "cpp",
+            "tuple": "cpp",
+            "utility": "cpp",
+            "variant": "cpp"
         },
         "search.exclude": {
             "**/build/**": true,
-            "**/libs/**": true,
-            "**/models/**": true,
+            "**/libs/**": false,
+            "**/models/**": false,
             "**/.git": true
         },
         "copilot.chat.welcomeMessage": "I'm here to help with your Wt C++ web application. I understand your project structure and guidelines from the README.md",
         "copilot.editor.enableAutoCompletions": true,
+        "mcp.servers": {
+            "context7": {
+                "command": "npx",
+                "args": ["-y", "@context7/mcp-server"],
+                "env": {
+                    "CONTEXT7_LIBRARY_ID": "/emweb/wt"
+                }
+            }
+        },
         "files.watcherExclude": {
             "**/build/**": true,
             "**/libs/**": true,

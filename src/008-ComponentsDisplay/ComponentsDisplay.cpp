@@ -1,4 +1,4 @@
-#include "003-Components/ComponentsDisplay.h"
+#include "008-ComponentsDisplay/ComponentsDisplay.h"
 
 #include "002-Theme/Theme.h"
 #include "003-Components/Button.h"
@@ -34,8 +34,8 @@ void ComponentsDisplay::createVoiceRecorder()
 {
     auto wrapper = addWidget(std::make_unique<Wt::WContainerWidget>());
     wrapper->addNew<VoiceRecorder>();
-    wrapper->addNew<VoiceRecorder>();
-    wrapper->addNew<VoiceRecorder>();
+    // wrapper->addNew<VoiceRecorder>();
+    // wrapper->addNew<VoiceRecorder>();
 }
 
 void ComponentsDisplay::createMonacoEditor()

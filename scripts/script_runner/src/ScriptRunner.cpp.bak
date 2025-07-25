@@ -1,0 +1,467 @@
+/**
+ * @file ScriptRunner.cpp
+ * @brief Implementation of the main application controller
+ * 
+ * This file implements the ScriptRunner class which coordinates all
+ * application subsystems and manages the main event loop.
+ * 
+ * @author GitHub Copilot
+ * @date 2025-07-19
+ * @version 1.0.0
+ */
+
+#include "ScriptRunner.h"
+#include <ncurses.h>
+#include <signal.h>
+#include <unistd.h>
+#include <algorithm>
+#include <iomanip>
+#include <sstream>
+#include <thread>
+#include <sys/stat.h>
+
+// Global reference for signal handler
+ScriptRunner* g_scriptRunner = nullptr;
+
+/**
+ * @brief Signal handler for graceful shutdown
+ * 
+ * @param signum Signal number received
+ */
+void signalHandler(int signum) {
+    if (g_scriptRunner) {
+        g_scriptRunner->shutdown();
+    }
+}
+
+ScriptRunner::ScriptRunner()
+    : m_running(false)
+    , m_scriptsDirectory("scripts/sample_scripts")
+    , m_startTime(std::chrono::steady_clock::now())
+    , m_lastUpdate(std::chrono::steady_clock::now()) {
+    
+    Logger::getInstance().log(Logger::Level::INFO, "ScriptRunner: Initializing application");
+    
+    // Set up signal handlers
+    g_scriptRunner = this;
+    signal(SIGINT, signalHandler);
+    signal(SIGTERM, signalHandler);
+    
+    initializeSubsystems();
+    
+    Logger::getInstance().log(Logger::Level::INFO, "ScriptRunner: Initialization complete");
+}
+
+ScriptRunner::~ScriptRunner() {
+    Logger::getInstance().log(Logger::Level::INFO, "ScriptRunner: Shutting down application");
+    
+    // Clear global reference
+    g_scriptRunner = nullptr;
+    
+    // Cleanup is handled by unique_ptr destructors
+    Logger::getInstance().log(Logger::Level::INFO, "ScriptRunner: Shutdown complete");
+}
+
+int ScriptRunner::run() {
+    try {
+        Logger::getInstance().log(Logger::Level::INFO, "ScriptRunner: Starting main event loop");
+        
+        // Initialize UI
+        m_uiManager->initialize();
+        
+        // Refresh script list
+        refreshScriptList();
+        
+        // Start running
+        m_running = true;
+        
+        // Main event loop
+        eventLoop();
+        
+        // Clean shutdown
+        Logger::getInstance().log(Logger::Level::INFO, "ScriptRunner: Event loop exited normally");
+        return 0;
+        
+    } catch (const UIException& e) {
+        Logger::getInstance().log(Logger::Level::ERROR, "ScriptRunner: UI error: " + std::string(e.what()));
+        return 1;
+    } catch (const ProcessException& e) {
+        Logger::getInstance().log(Logger::Level::ERROR, "ScriptRunner: Process error: " + std::string(e.what()));
+        return 2;
+    } catch (const std::exception& e) {
+        Logger::getInstance().log(Logger::Level::ERROR, "ScriptRunner: Unexpected error: " + std::string(e.what()));
+        return 3;
+    }
+}
+
+void ScriptRunner::shutdown() {
+    Logger::getInstance().log(Logger::Level::INFO, "ScriptRunner: Shutdown requested");
+    m_running = false;
+    
+    // Terminate any running scripts
+    if (m_processManager) {
+        terminateScript(0);
+        terminateScript(1);
+    }
+}
+
+void ScriptRunner::executeScript(const std::string& scriptPath, int paneIndex) {
+    if (paneIndex < 0 || paneIndex > 1) {
+        throw std::invalid_argument("Invalid pane index: " + std::to_string(paneIndex));
+    }
+    
+    Logger::getInstance().log(Logger::Level::INFO, "ScriptRunner: Executing script " + scriptPath + " in pane " + std::to_string(paneIndex));
+    
+    try {
+        // Stop any existing process in the target pane
+        if (m_processManager->isProcessRunning(paneIndex)) {
+            terminateScript(paneIndex);
+            // Give it a moment to clean up
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        }
+        
+        // Start the new process
+        m_processManager->startProcess(scriptPath, paneIndex);
+        
+        // Update UI status
+        std::string status = "Started: " + scriptPath.substr(scriptPath.find_last_of('/') + 1);
+        m_uiManager->updateStatus(status, "", "");
+        
+    } catch (const ProcessException& e) {
+        std::string error = "Failed to execute " + scriptPath + ": " + e.what();
+        Logger::getInstance().log(Logger::Level::ERROR, error);
+        m_uiManager->updateStatus("Error", error, "");
+        throw;
+    }
+}
+
+void ScriptRunner::terminateScript(int paneIndex) {
+    if (paneIndex < 0 || paneIndex > 1) {
+        throw std::invalid_argument("Invalid pane index: " + std::to_string(paneIndex));
+    }
+    
+    if (m_processManager && m_processManager->isProcessRunning(paneIndex)) {
+        Logger::getInstance().log(Logger::Level::INFO, "ScriptRunner: Terminating script in pane " + std::to_string(paneIndex));
+        
+        m_processManager->stopProcess(paneIndex);
+        
+        std::string status = "Terminated process in pane " + std::to_string(paneIndex);
+        m_uiManager->updateStatus(status, "", "");
+    }
+}
+
+void ScriptRunner::refreshScriptList() {
+    Logger::getInstance().log(Logger::Level::INFO, "ScriptRunner: Refreshing script list");
+    
+    try {
+        m_availableScripts = m_processManager->discoverScripts(m_scriptsDirectory);
+        m_uiManager->updateScriptList(m_availableScripts);
+        
+        std::string status = "Found " + std::to_string(m_availableScripts.size()) + " scripts";
+        m_uiManager->updateStatus(status, "", formatRightStatus());
+        
+        Logger::getInstance().log(Logger::Level::INFO, "ScriptRunner: Found " + std::to_string(m_availableScripts.size()) + " scripts");
+        
+    } catch (const ProcessException& e) {
+        std::string error = "Failed to refresh script list: " + std::string(e.what());
+        Logger::getInstance().log(Logger::Level::ERROR, error);
+        m_uiManager->updateStatus("Error", error, "");
+    }
+}
+
+void ScriptRunner::handleKeyPress(int key) {
+    // Handle different categories of keys
+    if (handleNavigationKey(key)) return;
+    if (handleExecutionKey(key)) return;
+    if (handleViewKey(key)) return;
+    if (handleApplicationKey(key)) return;
+    
+    // Unknown key - log for debugging
+    Logger::getInstance().log(Logger::Level::DEBUG, "ScriptRunner: Unhandled key: " + std::to_string(key));
+}
+
+void ScriptRunner::handleResize() {
+    Logger::getInstance().log(Logger::Level::DEBUG, "ScriptRunner: Terminal resize detected");
+    
+    if (m_uiManager) {
+        m_uiManager->handleResize();
+        updateUI(); // Force immediate update
+    }
+}
+
+void ScriptRunner::initializeSubsystems() {
+    Logger::getInstance().log(Logger::Level::INFO, "ScriptRunner: Initializing subsystems");
+    
+    // Initialize ProcessManager
+    m_processManager = std::make_unique<ProcessManager>();
+    
+    // Initialize UIManager
+    m_uiManager = std::make_unique<UIManager>();
+    
+    // Verify scripts directory exists
+    struct stat st;
+    if (stat(m_scriptsDirectory.c_str(), &st) != 0) {
+        // Try to create it
+        if (mkdir(m_scriptsDirectory.c_str(), 0755) != 0) {
+            // Use current directory as fallback
+            m_scriptsDirectory = ".";
+            Logger::getInstance().log(Logger::Level::WARNING, "ScriptRunner: Scripts directory not found, using current directory");
+        }
+    }
+    
+    Logger::getInstance().log(Logger::Level::INFO, "ScriptRunner: Using scripts directory: " + m_scriptsDirectory);
+}
+
+void ScriptRunner::eventLoop() {
+    Logger::getInstance().log(Logger::Level::INFO, "ScriptRunner: Entering event loop");
+    
+    while (m_running) {
+        // Handle input (non-blocking)
+        int key = getch();
+        if (key != ERR) {
+            if (key == KEY_RESIZE) {
+                handleResize();
+            } else {
+                handleKeyPress(key);
+            }
+        }
+        
+        // Update UI if enough time has passed
+        if (shouldUpdateUI()) {
+            updateUI();
+            m_lastUpdate = std::chrono::steady_clock::now();
+        }
+        
+        // Small delay to prevent excessive CPU usage
+        std::this_thread::sleep_for(std::chrono::milliseconds(INPUT_POLL_INTERVAL_MS));
+    }
+    
+    Logger::getInstance().log(Logger::Level::INFO, "ScriptRunner: Exiting event loop");
+}
+
+void ScriptRunner::updateUI() {
+    if (!m_uiManager) return;
+    
+    // Get output from both processes
+    std::string output0, output1;
+    if (m_processManager) {
+        output0 = m_processManager->getProcessOutput(0);
+        output1 = m_processManager->getProcessOutput(1);
+    }
+    
+    // Update output panes
+    m_uiManager->updateOutputPane(0, output0);
+    m_uiManager->updateOutputPane(1, output1);
+    
+    // Update status bar
+    std::string leftStatus = formatLeftStatus();
+    std::string centerStatus = formatCenterStatus();
+    std::string rightStatus = formatRightStatus();
+    m_uiManager->updateStatus(leftStatus, centerStatus, rightStatus);
+    
+    // Refresh the display
+    m_uiManager->refresh();
+}
+
+bool ScriptRunner::handleNavigationKey(int key) {
+    switch (key) {
+        case KEY_UP:
+        case 'k':
+            m_uiManager->moveScriptSelection(-1);
+            return true;
+            
+        case KEY_DOWN:
+        case 'j':
+            m_uiManager->moveScriptSelection(1);
+            return true;
+            
+        case KEY_LEFT:
+        case 'h':
+            m_uiManager->switchActivePane(-1);
+            return true;
+            
+        case KEY_RIGHT:
+        case 'l':
+            m_uiManager->switchActivePane(1);
+            return true;
+            
+        case KEY_HOME:
+        case 'g':
+            m_uiManager->setScriptSelection(0);
+            return true;
+            
+        case KEY_END:
+        case 'G':
+            m_uiManager->setScriptSelection(m_availableScripts.size() - 1);
+            return true;
+            
+        default:
+            return false;
+    }
+}
+
+bool ScriptRunner::handleExecutionKey(int key) {
+    switch (key) {
+        case '\n':
+        case '\r':
+        case KEY_ENTER: {
+            // Execute selected script in next available pane
+            int selectedScript = m_uiManager->getSelectedScript();
+            if (selectedScript >= 0 && selectedScript < static_cast<int>(m_availableScripts.size())) {
+                int pane = getAvailablePane();
+                if (pane >= 0) {
+                    std::string scriptPath = m_scriptsDirectory + "/" + m_availableScripts[selectedScript];
+                    executeScript(scriptPath, pane);
+                } else {
+                    m_uiManager->updateStatus("No available panes", "Both output panes are busy", "");
+                }
+            }
+            return true;
+        }
+        
+        case ' ': {
+            // Execute in specific pane (alternating)
+            int selectedScript = m_uiManager->getSelectedScript();
+            if (selectedScript >= 0 && selectedScript < static_cast<int>(m_availableScripts.size())) {
+                static int lastPane = 1; // Start with pane 0 next time
+                lastPane = (lastPane + 1) % 2;
+                
+                std::string scriptPath = m_scriptsDirectory + "/" + m_availableScripts[selectedScript];
+                executeScript(scriptPath, lastPane);
+            }
+            return true;
+        }
+        
+        case 3: // Ctrl+C
+        case 't': {
+            // Terminate process in active pane
+            int activePane = m_uiManager->getActivePane();
+            if (activePane >= 0 && activePane <= 1) {
+                terminateScript(activePane);
+            }
+            return true;
+        }
+        
+        default:
+            return false;
+    }
+}
+
+bool ScriptRunner::handleViewKey(int key) {
+    switch (key) {
+        case KEY_PPAGE: // Page Up
+            m_uiManager->scrollPane(-10);
+            return true;
+            
+        case KEY_NPAGE: // Page Down
+            m_uiManager->scrollPane(10);
+            return true;
+            
+        case 12: // Ctrl+L
+            m_uiManager->clearPane();
+            return true;
+            
+        case 'r':
+        case KEY_F(5): // F5
+            refreshScriptList();
+            return true;
+            
+        case '\t': // Tab
+            m_uiManager->switchActivePane(1);
+            return true;
+            
+        default:
+            return false;
+    }
+}
+
+bool ScriptRunner::handleApplicationKey(int key) {
+    switch (key) {
+        case 17: // Ctrl+Q
+        case 27: // Escape
+            shutdown();
+            return true;
+            
+        case KEY_F(1): // F1
+        case '?':
+            m_uiManager->toggleHelp();
+            return true;
+            
+        default:
+            return false;
+    }
+}
+
+int ScriptRunner::getAvailablePane() const {
+    if (!m_processManager) return 0;
+    
+    // Check pane 0 first
+    if (!m_processManager->isProcessRunning(0)) {
+        return 0;
+    }
+    
+    // Check pane 1
+    if (!m_processManager->isProcessRunning(1)) {
+        return 1;
+    }
+    
+    // Both panes are busy
+    return -1;
+}
+
+std::string ScriptRunner::formatLeftStatus() const {
+    std::string status = "Scripts: " + std::to_string(m_availableScripts.size());
+    
+    if (m_processManager) {
+        int runningCount = 0;
+        if (m_processManager->isProcessRunning(0)) runningCount++;
+        if (m_processManager->isProcessRunning(1)) runningCount++;
+        
+        if (runningCount > 0) {
+            status += " | Running: " + std::to_string(runningCount);
+        }
+    }
+    
+    return status;
+}
+
+std::string ScriptRunner::formatCenterStatus() const {
+    int selectedScript = m_uiManager->getSelectedScript();
+    if (selectedScript >= 0 && selectedScript < static_cast<int>(m_availableScripts.size())) {
+        return "Selected: " + m_availableScripts[selectedScript];
+    }
+    return "";
+}
+
+std::string ScriptRunner::formatRightStatus() const {
+    auto uptime = getUptime();
+    return "Uptime: " + formatDuration(uptime);
+}
+
+bool ScriptRunner::shouldUpdateUI() const {
+    auto now = std::chrono::steady_clock::now();
+    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - m_lastUpdate);
+    return elapsed.count() >= UI_UPDATE_INTERVAL_MS;
+}
+
+std::chrono::seconds ScriptRunner::getUptime() const {
+    auto now = std::chrono::steady_clock::now();
+    return std::chrono::duration_cast<std::chrono::seconds>(now - m_startTime);
+}
+
+std::string ScriptRunner::formatDuration(std::chrono::seconds duration) const {
+    auto hours = std::chrono::duration_cast<std::chrono::hours>(duration);
+    auto minutes = std::chrono::duration_cast<std::chrono::minutes>(duration % std::chrono::hours(1));
+    auto seconds = duration % std::chrono::minutes(1);
+    
+    std::ostringstream oss;
+    if (hours.count() > 0) {
+        oss << hours.count() << "h";
+    }
+    if (minutes.count() > 0 || hours.count() > 0) {
+        oss << minutes.count() << "m";
+    }
+    oss << seconds.count() << "s";
+    
+    return oss.str();
+}

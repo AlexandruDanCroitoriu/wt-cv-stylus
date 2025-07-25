@@ -124,6 +124,7 @@ void VoiceRecorder::setupUI()
     // Connect file upload signal
     file_upload_->uploaded().connect(this, &VoiceRecorder::onFileUploaded);
     file_upload_->fileTooLarge().connect(this, &VoiceRecorder::onFileTooLarge);
+    file_upload_->hide();
     
     // MAIN DISPLAY: Prominent transcription output
     auto transcription_container = main_wrapper->addNew<Wt::WContainerWidget>();
