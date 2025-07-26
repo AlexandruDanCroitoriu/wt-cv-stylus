@@ -58,7 +58,7 @@ App::App(const Wt::WEnvironment &env)
     theme->setPenguinUiConfig();
     setTheme(theme);
 
-    // stylus_ = root()->addChild(std::make_unique<Stylus::Stylus>(session_));
+    stylus_ = root()->addChild(std::make_unique<Stylus::Stylus>(session_));
     
     auth_dialog_ = wApp->root()->addNew<Wt::WDialog>("");
     auth_dialog_->titleBar()->removeFromParent();

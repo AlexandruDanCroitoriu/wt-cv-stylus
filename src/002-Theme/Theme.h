@@ -133,6 +133,8 @@ public:
     void setWidgetThemeClasses(PenguinUiWidgetTheme widgetTheme, const std::string &styleClasses);
     void addWidgetThemeClasses(PenguinUiWidgetTheme widgetTheme, const std::string &styleClasses);
 
+    mutable std::string current_tailwind_file_path_;
+
     virtual std::string name() const override;
 
     /*! \brief Returns the stylesheets.

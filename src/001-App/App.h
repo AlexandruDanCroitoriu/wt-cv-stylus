@@ -2,7 +2,7 @@
 #include <Wt/WApplication.h>
 #include "004-Dbo/Session.h"
 
-// #include "101-Stylus/Stylus.h"
+#include "999-Stylus/Stylus.h"
 #include "002-Theme/Theme.h"
 #include "005-Auth/AuthWidget.h"
 
@@ -17,7 +17,7 @@ public:
     
 private:
     Session session_;
-    // Stylus::Stylus* stylus_ = nullptr;
+    Stylus::Stylus* stylus_ = nullptr;
     void authEvent();
     Wt::WContainerWidget* app_content_;
     void createApp();

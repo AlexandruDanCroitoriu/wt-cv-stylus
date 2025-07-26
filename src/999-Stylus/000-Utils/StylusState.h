@@ -25,6 +25,8 @@ namespace Stylus
         std::string extension_;
         std::string root_folder_path_;
         std::string root_resource_url_;
+        std::vector<std::pair<std::string, std::vector<std::string>>> getFolders();
+        std::vector<std::pair<std::string, std::vector<std::string>>> folders_;
     };
 
     struct MessageAttributeData {
@@ -52,12 +54,15 @@ namespace Stylus
         tinyxml2::XMLElement* images_manager_node_ = nullptr;
         tinyxml2::XMLElement* copy_node_ = nullptr;
 
-        std::string tailwind_input_file_path_;
-    
+        std::string tailwind_config_file_path_;
+
+        
         StylusEditorManagementData xml_editor_data_;
         StylusEditorManagementData css_editor_data_;
         StylusEditorManagementData js_editor_data_;
         StylusEditorManagementData tailwind_config_editor_data_;
+        
+        void generateCssFile();
 
         std::string getFileText(std::string file_path);
         /* 

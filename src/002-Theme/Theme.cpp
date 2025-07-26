@@ -139,7 +139,9 @@ std::vector<Wt::WLinkedCssStyleSheet> Theme::styleSheets() const
     std::vector<Wt::WLinkedCssStyleSheet> result;
     std::string themeDir = resourcesUrl();
 
-    result.push_back(Wt::WLinkedCssStyleSheet(Wt::WLink("static/tailwind.css?" + Wt::WRandom::generateId())));
+    current_tailwind_file_path_ = "static/tailwind.css?" + Wt::WRandom::generateId();
+
+    result.push_back(Wt::WLinkedCssStyleSheet(Wt::WLink(current_tailwind_file_path_)));
     result.push_back(Wt::WLinkedCssStyleSheet(Wt::WLink(themeDir + "wt.css")));
 
     if (wApp->environment().agentIsIElt(9))
@@ -302,7 +304,7 @@ void Theme::apply(Wt::WWidget *widget, Wt::DomElement& element, int elementRole)
     {
       Wt::WDialog *dialog = dynamic_cast<Wt::WDialog *>(widget);
       if (dialog) {
-        element.addPropertyWord(Wt::Property::Class, "rounded-radius border-outline bg-surface-alt text-surface-alt");
+        element.addPropertyWord(Wt::Property::Class, "rounded-radius border-outline bg-surface-alt text-on-surface-alt");
         return;
       }
 

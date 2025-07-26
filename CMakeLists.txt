@@ -78,7 +78,9 @@ set(MAIN_APP_SOURCES
     ${SOURCE_DIR}/999-Stylus/000-Utils/StylusState.cpp
     ${SOURCE_DIR}/999-Stylus/000-Utils/StylusPanelWrapper.cpp
     ${SOURCE_DIR}/999-Stylus/000-Utils/XMLFileBrain.cpp
+    ${SOURCE_DIR}/999-Stylus/000-Utils/FileExplorerTree.cpp
     ${SOURCE_DIR}/999-Stylus/000-Utils/tinyxml2/tinyxml2.cpp
+    ${SOURCE_DIR}/999-Stylus/001-TailwindCss/TailwindCss.cpp
     ${SOURCE_DIR}/999-Stylus/005-ImagesManager/ImagesManager.cpp
 
     )

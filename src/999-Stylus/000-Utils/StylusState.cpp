@@ -15,6 +15,43 @@ namespace Stylus
 {
 
     
+    std::vector<std::pair<std::string, std::vector<std::string>>> StylusEditorManagementData::getFolders()
+    {
+        std::vector<std::pair<std::string, std::vector<std::string>>> return_folders;
+        std::vector<std::string> folders;
+
+        for (const auto &entry : std::filesystem::directory_iterator(root_folder_path_))
+        {
+            if (entry.is_directory())
+            {
+                folders.push_back(entry.path().filename().string());
+            }
+        }
+        for (const auto &folder : folders)
+        {
+            std::vector<std::string> files;
+            for (const auto &entry : std::filesystem::directory_iterator(root_folder_path_ + folder))
+            {
+                if (entry.is_regular_file())
+                {
+                    files.push_back(entry.path().filename().string());
+                }
+            }
+            return_folders.push_back(std::make_pair(folder, files));
+        }
+        // sort
+        std::sort(return_folders.begin(), return_folders.end(), [](const auto &a, const auto &b)
+                    { return a.first < b.first; });
+        for (auto &folder : return_folders)
+        {
+            std::sort(folder.second.begin(), folder.second.end());
+        }
+        folders_ = return_folders;
+        // folders_changed_.emit("");
+        return return_folders;
+    }
+
+    
     std::string trimWitespace(std::string str)
     {
         str.erase(0, str.find_first_not_of(" \t\n\r\f\v")); // trim from start
@@ -35,20 +72,23 @@ namespace Stylus
         js_editor_data_.extension_ = "js";
         js_editor_data_.root_folder_path_ = "../../static/stylus-resources/js/";
         js_editor_data_.root_resource_url_ = "static/stylus-resources/js/";
+        js_editor_data_.getFolders();
 
         xml_editor_data_.extension_ = "xml";
         xml_editor_data_.root_folder_path_ = "../../static/stylus-resources/xml/";
         xml_editor_data_.root_resource_url_ = "static/stylus-resources/xml/";
+        xml_editor_data_.getFolders();
 
         css_editor_data_.extension_ = "css";
         css_editor_data_.root_folder_path_ = "../../static/stylus-resources/tailwind4/css/";
         css_editor_data_.root_resource_url_ = "static/stylus-resources/tailwind4/css/";
+        css_editor_data_.getFolders();
 
         tailwind_config_editor_data_.extension_ = "css";
         tailwind_config_editor_data_.root_folder_path_ = "../../static/stylus-resources/tailwind-config/";
         tailwind_config_editor_data_.root_resource_url_ = "static/stylus-resources/tailwind-config/";
 
-        tailwind_input_file_path_ = "../../static/stylus-resources/tailwind4/input.css";
+        tailwind_config_file_path_ = "../../static/stylus-resources/tailwind4/input.css";
 
         doc_->LoadFile(state_file_path_.c_str());
         if (doc_->ErrorID() != tinyxml2::XML_SUCCESS)
@@ -152,7 +192,7 @@ namespace Stylus
         std::ifstream file(file_path);
         if (!file.is_open())
         {
-            std::cout << "\n\n Failed to read file: " << file_path << "\n\n";
+            std::cout << "\n\n Failed to read file Stylus state : " << file_path << "\n\n";
             return "!Failed to read file!";
         }
 

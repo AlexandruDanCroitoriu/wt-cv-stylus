@@ -29,13 +29,28 @@
         "copilot.chat.welcomeMessage": "I'm here to help with your Wt C++ web application. I understand your project structure and guidelines from the README.md",
         "copilot.editor.enableAutoCompletions": true,
         "mcp.servers": {
-            "context7": {
-                "command": "npx",
-                "args": ["-y", "@context7/mcp-server"],
-                "env": {
-                    "CONTEXT7_LIBRARY_ID": "/emweb/wt"
-                }
+            "wt": {
+            "command": "npx",
+            "args": ["-y", "@context7/mcp-server"],
+            "env": {
+                "CONTEXT7_LIBRARY_ID": "/emweb/wt"
             }
+            },
+            "whispercpp": {
+            "command": "npx",
+            "args": ["-y", "@context7/mcp-server"],
+            "env": {
+                "CONTEXT7_LIBRARY_ID": "/ggml-org/whisper.cpp"
+            }
+            },
+            "tinyxml2": {
+            "command": "npx",
+            "args": ["-y", "@context7/mcp-server"],
+            "env": {
+                "CONTEXT7_LIBRARY_ID": "/leethomason/tinyxml2"
+            }
+            }
+        }
         },
         "files.watcherExclude": {
             "**/build/**": true,

@@ -19,7 +19,7 @@ namespace Stylus
     {
         setOffsets(0, Wt::Side::Top | Wt::Side::Bottom | Wt::Side::Left | Wt::Side::Right);
         titleBar()->children()[0]->removeFromParent();
-        setStyleClass("!border-0 overflow-auto stylus-background");
+        setStyleClass("!border-0 overflow-auto bg-surface-alt ");
         titleBar()->hide();
         titleBar()->setStyleClass("p-0 flex items-center overflow-x-visible h-[40px]");
         contents()->setStyleClass("h-[100vh] overflow-y-auto overflow-x-visible flex");
@@ -66,6 +66,7 @@ namespace Stylus
         // std::unique_ptr<CssFilesManager> css_files_manager_ptr = std::make_unique<CssFilesManager>(state_);
         // std::unique_ptr<JsFilesManager> js_files_manager_ptr = std::make_unique<JsFilesManager>(state_);
         // std::unique_ptr<TailwindConfigManager> tailwind_config_ptr = std::make_unique<TailwindConfigManager>(state_);
+        std::unique_ptr<TailwindCss> tailwind_css_ptr = std::make_unique<TailwindCss>(state_);
         std::unique_ptr<ImagesManager> images_manager_ptr = std::make_unique<ImagesManager>(state_);
         // std::unique_ptr<Settings> settings_ptr = std::make_unique<Settings>(state_);
 
@@ -73,6 +74,7 @@ namespace Stylus
         // css_files_manager_ = css_files_manager_ptr.get();
         // js_files_manager_ = js_files_manager_ptr.get();
         // tailwind_config_ = tailwind_config_ptr.get();
+        tailwind_css_ = tailwind_css_ptr.get();
         images_manager_ = images_manager_ptr.get();
         // settings_ = settings_ptr.get();
 
@@ -80,25 +82,27 @@ namespace Stylus
         // css_menu_item_ = menu_->addItem(std::make_unique<Wt::WMenuItem>("", std::move(css_files_manager_ptr), Wt::ContentLoading::Lazy));
         // javascript_menu_item_ = menu_->addItem(std::make_unique<Wt::WMenuItem>("", std::move(js_files_manager_ptr), Wt::ContentLoading::Lazy));
         // tailwind_menu_item_ = menu_->addItem(std::make_unique<Wt::WMenuItem>("", std::move(tailwind_config_ptr), Wt::ContentLoading::Lazy));
-        // images_menu_item_ = menu_->addItem(std::make_unique<Wt::WMenuItem>("", std::move(images_manager_ptr), Wt::ContentLoading::Lazy));
+        tailwind_css_menu_item_ = menu_->addItem(std::make_unique<Wt::WMenuItem>("", std::move(tailwind_css_ptr), Wt::ContentLoading::Lazy));
+        images_menu_item_ = menu_->addItem(std::make_unique<Wt::WMenuItem>("", std::move(images_manager_ptr), Wt::ContentLoading::Lazy));
         // settings_menu_item_ = menu_->addItem(std::make_unique<Wt::WMenuItem>("", std::move(settings_ptr), Wt::ContentLoading::Lazy));
 
         // xml_file_manager_menu_item_ = menu_->addItem(std::make_unique<Wt::WMenuItem>("", std::move(files_manager_ptr)));
         // css_menu_item_ = menu_->addItem(std::make_unique<Wt::WMenuItem>("", std::move(css_files_manager_ptr)));
         // javascript_menu_item_ = menu_->addItem(std::make_unique<Wt::WMenuItem>("", std::move(js_files_manager_ptr)));
         // tailwind_menu_item_ = menu_->addItem(std::make_unique<Wt::WMenuItem>("", std::move(tailwind_config_ptr)));
-        images_menu_item_ = menu_->addItem(std::make_unique<Wt::WMenuItem>("", std::move(images_manager_ptr)));
+        // images_menu_item_ = menu_->addItem(std::make_unique<Wt::WMenuItem>("", std::move(images_manager_ptr)));
         // settings_menu_item_ = menu_->addItem(std::make_unique<Wt::WMenuItem>("", std::move(settings_ptr)));
 
         // auto xml_svg_temp = xml_file_manager_menu_item_->anchor()->insertNew<Wt::WTemplate>(0, Wt::WString::tr("stylus-svg-xml-logo"));
         // auto css_svg_temp = css_menu_item_->anchor()->insertNew<Wt::WTemplate>(0, Wt::WString::tr("stylus-svg-css-logo"));
         // auto javascript_svg_temp = javascript_menu_item_->anchor()->insertNew<Wt::WTemplate>(0, Wt::WString::tr("stylus-svg-javascript-logo"));
         // auto tailwind_svg_temp = tailwind_menu_item_->anchor()->insertNew<Wt::WTemplate>(0, Wt::WString::tr("stylus-svg-tailwind-logo"));
+        auto tailwind_svg_temp = tailwind_css_menu_item_->anchor()->insertNew<Wt::WTemplate>(0, Wt::WString::tr("stylus-svg-tailwind-logo"));
         auto images_svg_temp = images_menu_item_->anchor()->insertNew<Wt::WTemplate>(0, Wt::WString::tr("stylus-svg-images-logo"));
         // auto settings_svg_temp = settings_menu_item_->anchor()->insertNew<Wt::WTemplate>(0, Wt::WString::tr("stylus-svg-settings-logo"));
 
-        // dark_mode_toggle_ = navbar_wrapper_->addNew<DarkModeToggle>(session_);
-        // theme_switcher_ = navbar_wrapper_->addNew<ThemeSwitcher>(session_);
+        dark_mode_toggle_ = navbar_wrapper_->addNew<DarkModeToggle>(session_);
+        theme_switcher_ = navbar_wrapper_->addNew<ThemeSwitcher>(session_);
         
         std::string nav_btns_styles = "w-[35px] m-[3px] p-1 cursor-pointer rounded-md flex items-center justify-center";
 
@@ -106,6 +110,7 @@ namespace Stylus
         // css_svg_temp->setStyleClass(nav_btns_styles);
         // javascript_svg_temp->setStyleClass(nav_btns_styles + " p-1");
         // tailwind_svg_temp->setStyleClass(nav_btns_styles);
+        tailwind_svg_temp->setStyleClass(nav_btns_styles + " p-1");
         images_svg_temp->setStyleClass(nav_btns_styles);
         // // settings_svg_temp->setStyleClass(nav_btns_styles);
         
@@ -113,21 +118,23 @@ namespace Stylus
         // css_menu_item_->addStyleClass("m-1");
         // javascript_menu_item_->addStyleClass("m-1");
         // tailwind_menu_item_->addStyleClass("m-1");
+        tailwind_css_menu_item_->addStyleClass("m-1");
         images_menu_item_->addStyleClass("m-1");
         // settings_menu_item_->addStyleClass("m-1");
         // dark_mode_toggle_->addStyleClass("m-1 text-xs");
         // theme_switcher_->addStyleClass("m-1 text-xs");
         
 
-        // xml_files_manager_ = content_stack_->addNew<XmlFilesManager>(state_);
-        // css_files_manager_ = content_stack_->addNew<CssFilesManager>(state_);
-        // js_files_manager_ = content_stack_->addNew<JsFilesManager>(state_);
-        // tailwind_config_ = content_stack_->addNew<TailwindConfigManager>(state_);
-        images_manager_ = content_stack_->addNew<ImagesManager>(state_);
-        // settings_ = content_stack_->addNew<Settings>(state_);
+        // // xml_files_manager_ = content_stack_->addNew<XmlFilesManager>(state_);
+        // // css_files_manager_ = content_stack_->addNew<CssFilesManager>(state_);
+        // // js_files_manager_ = content_stack_->addNew<JsFilesManager>(state_);
+        // // tailwind_config_ = content_stack_->addNew<TailwindConfigManager>(state_);
+        // tailwind_css_ = content_stack_->addNew<TailwindCss>(state_);
+        // images_manager_ = content_stack_->addNew<ImagesManager>(state_);
+        // // settings_ = content_stack_->addNew<Settings>(state_);
 
-        auto selected_menu = state_->stylus_node_->Attribute("selected-menu");
-        std::cout << "Selected menu: " << (selected_menu ? selected_menu : "null") << std::endl;
+        // auto selected_menu = state_->stylus_node_->Attribute("selected-menu");
+        // std::cout << "Selected menu: " << (selected_menu ? selected_menu : "null") << std::endl;
         // if (std::strcmp(selected_menu, "templates") == 0) {
         //     menu_->select(xml_file_manager_menu_item_);
         // }else if (std::strcmp(selected_menu, "tailwind") == 0) {
@@ -205,20 +212,20 @@ namespace Stylus
         wApp->globalKeyWentDown().connect([=](Wt::WKeyEvent e)
                                                                   { 
         if (e.modifiers().test(Wt::KeyboardModifier::Alt)){
-            if(e.modifiers().test(Wt::KeyboardModifier::Shift)){
-                if(e.key() == Wt::Key::Q){
+            // if(e.modifiers().test(Wt::KeyboardModifier::Shift)){
+            //     if(e.key() == Wt::Key::Q){
 
-                    if(navbar_wrapper_->isHidden())
-                    {
-                        state_->stylus_node_->SetAttribute("navigation-bar-hidden", "false");
-                        navbar_wrapper_->animateShow(Wt::WAnimation(Wt::AnimationEffect::SlideInFromLeft, Wt::TimingFunction::EaseInOut, 500));
-                    }else
-                    {
-                        state_->stylus_node_->SetAttribute("navigation-bar-hidden", "true");
-                        navbar_wrapper_->animateHide(Wt::WAnimation(Wt::AnimationEffect::SlideInFromLeft, Wt::TimingFunction::EaseInOut, 500));
-                    }
-                    state_->doc_->SaveFile(state_->state_file_path_.c_str());
-                }
+            //         if(navbar_wrapper_->isHidden())
+            //         {
+            //             state_->stylus_node_->SetAttribute("navigation-bar-hidden", "false");
+            //             navbar_wrapper_->animateShow(Wt::WAnimation(Wt::AnimationEffect::SlideInFromLeft, Wt::TimingFunction::EaseInOut, 500));
+            //         }else
+            //         {
+            //             state_->stylus_node_->SetAttribute("navigation-bar-hidden", "true");
+            //             navbar_wrapper_->animateHide(Wt::WAnimation(Wt::AnimationEffect::SlideInFromLeft, Wt::TimingFunction::EaseInOut, 500));
+            //         }
+            //         state_->doc_->SaveFile(state_->state_file_path_.c_str());
+            //     }
             //     else if(e.key() == Wt::Key::Up){
             //         if(!xml_files_manager_->selected_file_brain_) return;
             //         auto selected_node = xml_files_manager_->selected_file_brain_->selected_node_;
@@ -544,20 +551,21 @@ namespace Stylus
             //         }
             //     }
 
-            // }else if (e.key() == Wt::Key::Q){
-            //     if(isHidden()){
-            //         animateShow(Wt::WAnimation(Wt::AnimationEffect::Pop, Wt::TimingFunction::EaseInOut, 500));
-            //         content_stack_->currentWidget()->refresh();
-            //         state_->stylus_node_->SetAttribute("open", "true");
-            //     }else{
-            //         animateHide(Wt::WAnimation(Wt::AnimationEffect::Pop, Wt::TimingFunction::EaseInOut, 500));
-            //         state_->stylus_node_->SetAttribute("open", "false");
-            //         Wt::WMessageResourceBundle& resource_boundle = wApp->messageResourceBundle();
-            //         wApp->refresh();
+            // }else 
+            if (e.key() == Wt::Key::Q){
+                if(isHidden()){
+                    animateShow(Wt::WAnimation(Wt::AnimationEffect::Pop, Wt::TimingFunction::EaseInOut, 500));
+                    content_stack_->currentWidget()->refresh();
+                    state_->stylus_node_->SetAttribute("open", "true");
+                }else{
+                    animateHide(Wt::WAnimation(Wt::AnimationEffect::Pop, Wt::TimingFunction::EaseInOut, 500));
+                    state_->stylus_node_->SetAttribute("open", "false");
+                    Wt::WMessageResourceBundle& resource_boundle = wApp->messageResourceBundle();
+                    wApp->refresh();
                     
-            //     }
-            //     state_->doc_->SaveFile(state_->state_file_path_.c_str());
-            // }
+                }
+                state_->doc_->SaveFile(state_->state_file_path_.c_str());
+            }
             // else if (e.key() == Wt::Key::Key_1){
             //     menu_->select(xml_file_manager_menu_item_);
             // }else if (e.key() == Wt::Key::Key_2){
@@ -825,7 +833,7 @@ namespace Stylus
                 
             //     xml_files_manager_->selected_file_brain_->doc_->SaveFile(xml_files_manager_->selected_file_brain_->file_path_.c_str());
             //     xml_files_manager_->selected_file_brain_->file_saved_.emit();
-            }
+            // }
         } });
 
 

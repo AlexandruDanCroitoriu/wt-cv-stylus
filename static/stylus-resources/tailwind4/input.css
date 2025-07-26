@@ -1,6 +1,5 @@
 /* Import TailwindCSS base styles */
 @import "tailwindcss";
-@custom-variant dark (&:where(.dark, .dark *));
 
 /* Import custom CSS files for additional styles */
 
@@ -9,11 +8,221 @@
 @source "../../../src/";
 
 /* Import custom CSS files */
-@import "./configuration/theme.css";
-
-/* @import "./css/000-examples/tree.css"; */
-/* @import "./css/000-examples/use-anything.css"; */
-/* @import "./css/101-stylus/general.css"; */
-/* @import "./css/101-stylus/test.css"; */
 /* Define custom theme */
-/* Define custom variants */
+@custom-variant dark (&:where(.dark, .dark *));
+@custom-variant theme-arctic (&:where([data-theme="arctic"], [data-theme="arctic"] *));
+@custom-variant theme-modern (&:where([data-theme="modern"], [data-theme="modern"] *));
+@custom-variant theme-pastel (&:where([data-theme="pastel"], [data-theme="pastel"] *));
+@custom-variant theme-news (&:where([data-theme="news"], [data-theme="news"] *));
+
+@theme {
+    /* Fonts */
+    --font-title: 'Poppins', sans-serif;
+    --font-body: 'Inter', sans-serif;
+    --font-paragraph: 'Inter', sans-serif;
+
+   /* Light Themes */
+    --color-surface: var(--color-white);
+    --color-surface-alt: var(--color-neutral-100);
+    --color-on-surface: var(--color-black);
+    --color-on-surface-strong: var(--color-black);
+    --color-primary: var(--color-black);
+    --color-on-primary: var(--color-white);
+    --color-secondary: var(--color-neutral-700);
+    --color-on-secondary: var(--color-white);
+    --color-outline: var(--color-black);
+    --color-outline-strong: var(--color-black);
+
+    /* Shared Colors */
+    --color-info: var(--color-sky-300);
+    --color-on-info: var(--color-black);
+    --color-success: var(--color-green-300);
+    --color-on-success: var(--color-black);
+    --color-warning: var(--color-yellow-200);
+    --color-on-warning: var(--color-black);
+    --color-danger: var(--color-red-300);
+    --color-on-danger: var(--color-black);
+
+    /* Border Radius */
+    --radius-radius: var(--radius-none);
+}
+
+@variant dark {
+    --color-surface: var(--color-black);
+    --color-surface-alt: var(--color-neutral-900);
+    --color-on-surface: var(--color-white);
+    --color-on-surface-strong: var(--color-white);
+    --color-primary: var(--color-white);
+    --color-on-primary: var(--color-black);
+    --color-secondary: var(--color-neutral-300);
+    --color-on-secondary: var(--color-black);
+    --color-outline: var(--color-white);
+    --color-outline-strong: var(--color-white);
+}
+
+@variant theme-arctic {
+    --font-title: 'Inter', sans-serif;
+    --font-body: 'Inter', sans-serif;
+    --font-paragraph: 'Inter', sans-serif;
+
+    --color-surface: var(--color-white);
+    --color-surface-alt: var(--color-slate-100);
+    --color-on-surface: var(--color-slate-700);
+    --color-on-surface-strong: var(--color-black);
+    --color-primary: var(--color-blue-700);
+    --color-on-primary: var(--color-slate-100);
+    --color-secondary: var(--color-indigo-700);
+    --color-on-secondary: var(--color-slate-100);
+    --color-outline: var(--color-slate-300);
+    --color-outline-strong: var(--color-slate-800);
+
+    @variant dark {
+        --color-surface: var(--color-slate-900);
+        --color-surface-alt: var(--color-slate-800);
+        --color-on-surface: var(--color-slate-300);
+        --color-on-surface-strong: var(--color-white);
+        --color-primary: var(--color-blue-600);
+        --color-on-primary: var(--color-slate-100);
+        --color-secondary: var(--color-indigo-600);
+        --color-on-secondary: var(--color-slate-100);
+        --color-outline: var(--color-slate-700);
+        --color-outline-strong: var(--color-slate-300);
+    }
+
+    --color-info: var(--color-sky-600);
+    --color-on-info: var(--color-white);
+    --color-success: var(--color-green-600);
+    --color-on-success: var(--color-white);
+    --color-warning: var(--color-amber-500);
+    --color-on-warning: var(--color-white);
+    --color-danger: var(--color-red-600);
+    --color-on-danger: var(--color-white);
+
+    --radius-radius: var(--radius-lg);
+}
+
+@variant theme-modern {
+    --font-title: 'Lato', sans-serif;
+    --font-body: 'Lato', sans-serif;
+    --font-paragraph: 'Lato', sans-serif;
+
+    --color-surface: var(--color-white);
+    --color-surface-alt: var(--color-neutral-50);
+    --color-on-surface: var(--color-neutral-600);
+    --color-on-surface-strong: var(--color-neutral-900);
+    --color-primary: var(--color-black);
+    --color-on-primary: var(--color-neutral-100);
+    --color-secondary: var(--color-neutral-800);
+    --color-on-secondary: var(--color-white);
+    --color-outline: var(--color-neutral-300);
+    --color-outline-strong: var(--color-neutral-800);
+    
+    @variant dark {
+       --color-surface: var(--color-neutral-950);
+        --color-surface-alt: var(--color-neutral-900);
+        --color-on-surface: var(--color-neutral-300);
+        --color-on-surface-strong: var(--color-white);
+        --color-primary: var(--color-white);
+        --color-on-primary: var(--color-black);
+        --color-secondary: var(--color-neutral-300);
+        --color-on-secondary: var(--color-black);
+        --color-outline: var(--color-neutral-700);
+        --color-outline-strong: var(--color-neutral-300);
+    }
+
+    --color-info: var(--color-sky-500);
+    --color-on-info: var(--color-white);
+    --color-success: var(--color-green-500);
+    --color-on-success: var(--color-white);
+    --color-warning: var(--color-amber-500);
+    --color-on-warning: var(--color-white);
+    --color-danger: var(--color-red-500);
+    --color-on-danger: var(--color-white);
+
+    --radius-radius: var(--radius-sm);
+}
+
+@variant theme-pastel {
+    --font-title: 'Playpen Sans', cursive;
+    --font-body: 'Playpen Sans', cursive;
+    --font-paragraph: 'Playpen Sans', cursive;
+
+    --color-surface: var(--color-amber-50);
+    --color-surface-alt: var(--color-amber-100);
+    --color-on-surface: var(--color-neutral-500);
+    --color-on-surface-strong: var(--color-neutral-700);
+    --color-primary: var(--color-rose-400);
+    --color-on-primary: var(--color-white);
+    --color-secondary: var(--color-orange-200);
+    --color-on-secondary: var(--color-neutral-800);
+    --color-outline: var(--color-neutral-200);
+    --color-outline-strong: var(--color-neutral-500);
+
+    @variant dark {
+        --color-surface: var(--color-neutral-900);
+        --color-surface-alt: var(--color-neutral-800);
+        --color-on-surface: var(--color-violet-100);
+        --color-on-surface-strong: var(--color-white);
+        --color-primary: var(--color-rose-400);
+        --color-on-primary: var(--color-white);
+        --color-secondary: var(--color-orange-200);
+        --color-on-secondary: var(--color-neutral-800);
+        --color-outline: var(--color-neutral-700);
+        --color-outline-strong: var(--color-neutral-600);
+        
+    }
+
+    --color-info: var(--color-blue-300);
+    --color-on-info: var(--color-sky-800);
+    --color-success: var(--color-green-300);
+    --color-on-success: var(--color-green-800);
+    --color-warning: var(--color-amber-300);
+    --color-on-warning: var(--color-amber-700);
+    --color-danger: var(--color-red-300);
+    --color-on-danger: var(--color-red-800);
+
+    --radius-radius: var(--radius-xl);
+}
+
+@variant theme-news {
+    --font-title: 'Merriweather', serif;
+    --font-body: 'Inter', sans-serif;
+    --font-paragraph: 'Inter', sans-serif;
+
+    --color-surface: var(--color-zinc-50);
+    --color-surface-alt: var(--color-zinc-100);
+    --color-on-surface: var(--color-neutral-600);
+    --color-on-surface-strong: var(--color-neutral-900);
+    --color-primary: var(--color-sky-700);
+    --color-on-primary: var(--color-white);
+    --color-secondary: var(--color-black);
+    --color-on-secondary: var(--color-white);
+    --color-outline: var(--color-zinc-300);
+    --color-outline-strong: var(--color-zinc-500);
+    
+    @variant dark {
+        --color-surface: var(--color-zinc-900);
+        --color-surface-alt: var(--color-zinc-800);
+        --color-on-surface: var(--color-zinc-200);
+        --color-on-surface-strong: var(--color-zinc-50);
+        --color-primary: var(--color-sky-600);
+        --color-on-primary: var(--color-white);
+        --color-secondary: var(--color-white);
+        --color-on-secondary: var(--color-black);
+        --color-outline: var(--color-zinc-700);
+        --color-outline-strong: var(--color-zinc-500);
+    }
+
+    --color-info: var(--color-sky-700);
+    --color-on-info: var(--color-slate-100);
+    --color-success: var(--color-green-700);
+    --color-on-success: var(--color-white);
+    --color-warning: var(--color-amber-600);
+    --color-on-warning: var(--color-amber-50);
+    --color-danger: var(--color-red-700);
+    --color-on-danger: var(--color-slate-100);
+
+    --radius-radius: var(--radius-sm);
+}
+
+

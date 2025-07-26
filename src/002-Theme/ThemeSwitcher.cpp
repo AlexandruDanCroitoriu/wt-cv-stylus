@@ -18,7 +18,7 @@ void ThemeSwitcher::showPopup(const Wt::WMouseEvent& event)
     if(!popup_menu_) {
         popup_menu_ = std::make_unique<Wt::WPopupMenu>();
         popup_menu_->setHideOnSelect(false);
-        popup_menu_->setStyleClass("stylus-background border divide-y divide-outline border-outline rounded-radius shadow-2xl");
+        popup_menu_->setStyleClass("bg-surface-alt border divide-y divide-outline border-outline rounded-radius shadow-2xl");
 
         popup_menu_->addItem(std::move(getMenuItem("arctic")))->addStyleClass("!rounded-t-radius");
         popup_menu_->addItem(std::move(getMenuItem("modern")));

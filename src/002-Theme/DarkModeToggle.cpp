@@ -3,6 +3,7 @@
 #include <Wt/WLabel.h>
 #include "002-Theme/Theme.h"
 #include <Wt/WApplication.h>
+#include "003-Components/MonacoEditor.h"
 
 DarkModeToggle::DarkModeToggle(Session& session)
     : Wt::WCheckBox(""),
@@ -32,6 +33,7 @@ DarkModeToggle::DarkModeToggle(Session& session)
         } else {
             wApp->setHtmlClass("");
         }
+        MonacoEditor::setDarkTheme(isChecked());
     });
 
     keyWentDown().connect([=](Wt::WKeyEvent e)
