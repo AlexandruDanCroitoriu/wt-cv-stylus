@@ -52,6 +52,7 @@ set(MAIN_APP_SOURCES
     ${SOURCE_DIR}/003-Components/MonacoEditor.cpp
     ${SOURCE_DIR}/003-Components/VoiceRecorder.cpp
     ${SOURCE_DIR}/003-Components/BigWorkWidget.cpp
+    ${SOURCE_DIR}/003-Components/DragBar.cpp
     
     ${SOURCE_DIR}/004-Dbo/Session.cpp
     ${SOURCE_DIR}/004-Dbo/Tables/User.cpp

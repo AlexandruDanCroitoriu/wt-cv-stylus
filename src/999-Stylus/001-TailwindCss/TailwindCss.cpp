@@ -1,4 +1,5 @@
 #include "999-Stylus/001-TailwindCss/TailwindCss.h"
+#include "003-Components/DragBar.h"
 #include "001-App/App.h"
 #include "002-Theme/Theme.h"
 #include <filesystem>
@@ -8,7 +9,6 @@
 #include <Wt/WRandom.h>
 #include <Wt/WServer.h>
 #include <Wt/WIOService.h>
-#include <Wt/WGridLayout.h>
 
 namespace Stylus
 {
@@ -55,16 +55,24 @@ namespace Stylus
         std::cout << "\n\nTailwindCss initialized with current CSS file path: " << current_css_file_path_.toUTF8() << "\n\n";
         generateCssFile();
         
-        auto grid_layout = std::make_unique<Wt::WGridLayout>();
-
-        file_explorer_tree_ = grid_layout->addWidget(std::make_unique<FileExplorerTree>(state, state->css_editor_data_), 0, 0);
-        monaco_editor_ = grid_layout->addWidget(std::make_unique<MonacoEditor>(state->tailwind_config_editor_data_.extension_), 0, 1);
-
-        monaco_editor_->addStyleClass("h-screen");
+        // Set up flexbox container
+        addStyleClass("flex h-screen");
+        
+        // Create child widgets
+        file_explorer_tree_ = addNew<FileExplorerTree>(state, state->css_editor_data_);
+        // Create drag bar with file explorer tree as target
+        drag_bar_ = addNew<DragBar>(file_explorer_tree_, 500, 200, 800);
+        monaco_editor_ = addNew<MonacoEditor>(state->tailwind_config_editor_data_.extension_);
+        
+        
+        // Apply styling to child widgets
+        monaco_editor_->addStyleClass("h-screen flex-1");
         file_explorer_tree_->addStyleClass("h-screen");
 
-        grid_layout->setColumnResizable(0, true, Wt::WLength(500, Wt::LengthUnit::Pixel));
-        grid_layout->setContentsMargins(0, 0, 0, 0);
+        // Connect drag bar width change signal
+        drag_bar_->widthChanged().connect([=](int new_width) {
+            std::cout << "Drag bar width changed to: " << new_width << "px\n";
+        });
 
         file_explorer_tree_->file_selected().connect(this, [=](const std::string &selected_file_path)
         {
@@ -81,8 +89,6 @@ namespace Stylus
                 std::cout << "File not found: " << file_path << "\n\n";
             }
         });
-
-        setLayout(std::move(grid_layout));
     }
 
     std::vector<std::string> TailwindCss::getConfigFiles()

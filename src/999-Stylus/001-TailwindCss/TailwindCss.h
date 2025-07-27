@@ -4,6 +4,7 @@
 #include "999-Stylus/000-Utils/StylusState.h"
 #include "003-Components/MonacoEditor.h"
 #include "999-Stylus/000-Utils/FileExplorerTree.h"
+#include "003-Components/DragBar.h"
 
 namespace Stylus {
 
@@ -17,6 +18,7 @@ public:
 private:
     FileExplorerTree* file_explorer_tree_;
     MonacoEditor* monaco_editor_;
+    DragBar* drag_bar_;
     std::vector<std::string> getConfigFiles();
     void generateCssFile();
 
