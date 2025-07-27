@@ -1,5 +1,5 @@
 #pragma once
-#include "999-Stylus/000-Utils/tinyxml2/tinyxml2.h"
+#include <tinyxml2.h>
 #include "999-Stylus/000-Utils/StylusState.h"
 
 #include <Wt/WString.h>

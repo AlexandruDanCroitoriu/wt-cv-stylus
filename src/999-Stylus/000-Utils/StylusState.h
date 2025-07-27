@@ -1,6 +1,6 @@
 #pragma once
 #include <Wt/WString.h>
-#include "999-Stylus/000-Utils/tinyxml2/tinyxml2.h"
+#include <tinyxml2.h>
 #include <Wt/WSignal.h>
 #include <Wt/WLogger.h>
 

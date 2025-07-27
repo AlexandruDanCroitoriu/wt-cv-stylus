@@ -26,6 +26,9 @@ FetchContent_MakeAvailable(json)
 FetchContent_Declare(cpr GIT_REPOSITORY https://github.com/libcpr/cpr.git GIT_TAG da40186618909b1a7363d4e4495aa899c6e0eb75) 
 FetchContent_MakeAvailable(cpr)
 
+FetchContent_Declare(tinyxml2 GIT_REPOSITORY https://github.com/leethomason/tinyxml2.git GIT_TAG 10.0.0)
+FetchContent_MakeAvailable(tinyxml2)
+
 # Whisper.cpp integration
 FetchContent_Declare(
     whisper
@@ -80,7 +83,6 @@ set(MAIN_APP_SOURCES
     ${SOURCE_DIR}/999-Stylus/000-Utils/StylusPanelWrapper.cpp
     ${SOURCE_DIR}/999-Stylus/000-Utils/XMLFileBrain.cpp
     ${SOURCE_DIR}/999-Stylus/000-Utils/FileExplorerTree.cpp
-    ${SOURCE_DIR}/999-Stylus/000-Utils/tinyxml2/tinyxml2.cpp
     ${SOURCE_DIR}/999-Stylus/001-TailwindCss/TailwindCss.cpp
     ${SOURCE_DIR}/999-Stylus/005-ImagesManager/ImagesManager.cpp
 
@@ -103,6 +105,7 @@ target_link_libraries(${PROJECT_NAME}
     boost_regex
     cpr::cpr
     nlohmann_json::nlohmann_json
+    tinyxml2::tinyxml2
 )
 
 # Build whisper service executable
@@ -115,7 +118,7 @@ target_link_libraries(whisper_service
 
 # Set runtime library path so the executable can find the shared libraries
 set_target_properties(${PROJECT_NAME} PROPERTIES
-    INSTALL_RPATH "${CMAKE_CURRENT_BINARY_DIR}/_deps/cpr-build/cpr"
+    INSTALL_RPATH "${CMAKE_CURRENT_BINARY_DIR}/_deps/cpr-build/cpr:${CMAKE_CURRENT_BINARY_DIR}/_deps/tinyxml2-build"
     BUILD_WITH_INSTALL_RPATH TRUE
     INSTALL_RPATH_USE_LINK_PATH TRUE
 )
@@ -142,7 +145,7 @@ if(UNIX AND NOT APPLE)
 endif()
 
 add_custom_target(run
-    COMMAND ${CMAKE_COMMAND} -E env LD_LIBRARY_PATH=${CMAKE_CURRENT_BINARY_DIR}/_deps/cpr-build/cpr:$ENV{LD_LIBRARY_PATH} $<TARGET_FILE:${PROJECT_NAME}> ${RLIB}
+    COMMAND ${CMAKE_COMMAND} -E env LD_LIBRARY_PATH=${CMAKE_CURRENT_BINARY_DIR}/_deps/cpr-build/cpr:${CMAKE_CURRENT_BINARY_DIR}/_deps/tinyxml2-build:$ENV{LD_LIBRARY_PATH} $<TARGET_FILE:${PROJECT_NAME}> ${RLIB}
     DEPENDS ${PROJECT_NAME}
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
     COMMENT "Running ${PROJECT_NAME} with proper library paths"
