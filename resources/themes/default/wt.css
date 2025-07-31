@@ -396,7 +396,7 @@ span.Wt-disabled, fieldset.Wt-disabled legend {
   position: absolute;
   display: none;
   /* background: white; */
-  color: black;
+  /* color: black; */
   border: 1px solid #666666;
   z-index: 200;
   cursor: default;

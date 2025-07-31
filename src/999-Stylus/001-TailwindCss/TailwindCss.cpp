@@ -14,7 +14,8 @@ namespace Stylus
 {
 
     TailwindCss::TailwindCss(std::shared_ptr<StylusState> state)
-        : StylusPanelWrapper(state)
+        : StylusPanelWrapper(state), 
+        css_selected_file_path_(state->css_node_->Attribute("selected-file-path"))
     {
         addStyleClass("");
         auto theme_ptr = wApp->theme();
@@ -37,20 +38,9 @@ namespace Stylus
             file_explorer_tree_ = addWidget(std::make_unique<FileExplorerTree>(state, state->css_editor_data_));
 
             folders_changed_.connect(this, [=](std::string selected_file_path)
-                                     {
-                                         if (selected_file_path.compare("") != 0)
-                                         {
-                                             current_css_file_path_ = selected_file_path;
-                                         }
-                                         auto config_files = getConfigFiles();
-                                         state_->css_editor_data_.folders_.clear();
-                                         for (const auto& file : config_files)
-                                         {
-                                             state_->css_editor_data_.folders_.push_back({file, {}});
-                                         }
-                                         // getFolders();
-                                         // reuploadFile();
-                                     });
+                {
+                    file_explorer_tree_->setTreeFolderWidgets();
+                });
         }
         std::cout << "\n\nTailwindCss initialized with current CSS file path: " << current_css_file_path_.toUTF8() << "\n\n";
         generateCssFile();
@@ -88,6 +78,42 @@ namespace Stylus
             {
                 std::cout << "File not found: " << file_path << "\n\n";
             }
+        });
+
+        monaco_editor_->avalable_save().connect(this, [=]()
+                                        {
+            if(css_selected_file_path_.compare("") == 0) {
+                return;
+            }
+
+            if(!std::fstream(state_->css_editor_data_.root_folder_path_ +  css_selected_file_path_).good()) {
+                std::cout << "\n\n avalable save but file not found: " << state_->css_editor_data_.root_folder_path_ + css_selected_file_path_ << "\n\n";
+                return;
+            }
+
+            TreeNode* selected_node = file_explorer_tree_->selectedNode();
+
+            if(selected_node && selected_node->label()->text().toUTF8().compare(css_selected_file_path_.substr(css_selected_file_path_.find_last_of("/")+1)) == 0) {
+                if(monaco_editor_->unsavedChanges()) {
+                    selected_node->toggleStyleClass("unsaved-changes", true, true);
+                }
+                else {
+                    selected_node->toggleStyleClass("unsaved-changes", false, true);
+                }
+            }
+            else {
+                std::cout << "\n\n No matching node found for the selected file.\n\n";
+            }
+        });
+        
+        folders_changed_.connect(this, [=](std::string selected_file_path)
+        {
+            file_explorer_tree_->setTreeFolderWidgets();
+            // if(css_selected_file_path.compare("") != 0) {
+            //     css_selected_file_path = selected_file_path;
+            // }
+            // getFolders();
+            // reuploadFile();
         });
     }
 

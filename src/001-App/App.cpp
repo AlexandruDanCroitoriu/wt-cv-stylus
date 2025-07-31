@@ -6,7 +6,6 @@
 #include "002-Theme/ThemeSwitcher.h"
 
 #include "008-ComponentsDisplay/ComponentsDisplay.h"
-#include "101-Examples/StarWarsApi.h"
 
 #include <Wt/WStackedWidget.h>
 #include <Wt/WPushButton.h>
@@ -132,6 +131,5 @@ void App::createApp()
     auto navbar = app_root_->addNew<Navigation>(session_);
     
     // navbar->addPage("Portofolio", std::make_unique<AboutMe>());
-    navbar->addPage("Start wars api", std::make_unique<StarWarsApi>());
     navbar->addPage("UI Penguin", std::make_unique<ComponentsDisplay>());
 }

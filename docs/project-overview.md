@@ -26,7 +26,7 @@ src/
 ├── 007-UserSettings/           # User preference management
 ├── 008-AboutMe/                # About/profile pages
 ├── 010-VoiceRecorder/          # Audio recording functionality
-└── 101-StarWarsApi/            # External API integration example
+└── 101-Examples/               # Examples and demonstrations
 ```
 
 ## Key Features
@@ -60,7 +60,7 @@ src/
 
 ### External Libraries
 - **nlohmann/json**: JSON parsing and serialization
-- **cpr**: HTTP client library for REST API calls
+- **TinyXML2**: Lightweight XML parser
 - **Wt**: Core web framework with widgets, HTTP server, and database ORM
 
 ### Build Requirements
@@ -116,12 +116,12 @@ widget->addStyleClass("primary-button");
 widget->addStyleClass("theme-aware");
 ```
 
-## API Integration
-The project includes examples of external API integration through the StarWars API component, demonstrating:
-- HTTP requests using cpr library
-- JSON response parsing
-- Async UI updates
-- Error handling patterns
+## Configuration Management
+The project demonstrates configuration management through:
+- XML configuration parsing with TinyXML2
+- JSON data handling with nlohmann/json
+- Runtime configuration updates
+- Environment-specific settings
 
 ## Deployment
 The application supports multiple deployment modes:

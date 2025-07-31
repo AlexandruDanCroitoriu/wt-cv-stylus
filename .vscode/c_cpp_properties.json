@@ -6,10 +6,8 @@
                 "${workspaceFolder}/**",
                 "${workspaceFolder}/src",
                 "${workspaceFolder}/build/debug/_deps/json-src/include",
-                "${workspaceFolder}/build/debug/_deps/cpr-src/include",
                 "${workspaceFolder}/build/debug/_deps/whisper-src",
                 "${workspaceFolder}/build/release/_deps/json-src/include",
-                "${workspaceFolder}/build/release/_deps/cpr-src/include",
                 "${workspaceFolder}/build/release/_deps/whisper-src",
                 "/usr/local/include",
                 "/usr/include"

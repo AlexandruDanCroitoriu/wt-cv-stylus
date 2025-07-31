@@ -289,41 +289,6 @@ private:
 };
 ```
 
-## External API Integration
-
-### StarWarsApi (`101-StarWarsApi/StarWarsApi.h`)
-```cpp
-class StarWarsApi : public Wt::WContainerWidget {
-public:
-    StarWarsApi();
-    
-    // API operations
-    void fetchCharacter(int characterId);
-    void fetchPlanet(int planetId);
-    void searchCharacters(const std::string& query);
-    
-    // Data display
-    void displayCharacterInfo(const nlohmann::json& character);
-    void displayError(const std::string& error);
-    
-    // Signals
-    Wt::Signal<nlohmann::json>& dataReceived() { return dataReceived_; }
-    Wt::Signal<std::string>& errorOccurred() { return errorOccurred_; }
-    
-private:
-    Wt::WLineEdit* searchInput_;
-    Wt::WPushButton* searchButton_;
-    Wt::WText* resultDisplay_;
-    Wt::WText* statusText_;
-    
-    Wt::Signal<nlohmann::json> dataReceived_;
-    Wt::Signal<std::string> errorOccurred_;
-    
-    void makeApiRequest(const std::string& url);
-    void handleApiResponse(const cpr::Response& response);
-};
-```
-
 ## Common Usage Patterns
 
 ### Widget Creation

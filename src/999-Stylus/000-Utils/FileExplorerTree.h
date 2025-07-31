@@ -10,6 +10,8 @@
 
 namespace Stylus {
 
+    class TreeNode;
+
     class FileExplorerTree : public Wt::WContainerWidget
     {
     public:
@@ -17,17 +19,18 @@ namespace Stylus {
         Wt::WContainerWidget* contents_;
         // Wt::WContainerWidget* footer_;
         Wt::Signal<Wt::WString>& width_changed() { return width_changed_; }
-        Wt::Signal<std::string>& folders_changed() { return folders_changed_; }
+        Wt::Signal<>& folders_changed() { return folders_changed_; }
         Wt::Signal<std::string>& file_selected() { return file_selected_; }
         
         void setTreeFolderWidgets();
+        TreeNode* selectedNode();
         protected:
         // Custom implementation
         void layoutSizeChanged(int width, int height) override;
         
         private:
         Wt::Signal<Wt::WString> width_changed_;
-        Wt::Signal<std::string> folders_changed_; // used mostly by xml files manager to recreate xml file brains
+        Wt::Signal<> folders_changed_; // used mostly by xml files manager to recreate xml file brains
         Wt::Signal<std::string> file_selected_; // returns path of the selected file 
 
         std::shared_ptr<StylusState> state_;
@@ -47,7 +50,7 @@ namespace Stylus {
     public:
         TreeNode(std::string name, TreeNodeType type, std::string path, StylusEditorManagementData data);
 
-        Wt::Signal<std::string> folders_changed_; // emits selected file path
+        Wt::Signal<> folders_changed_; // emits selected file path
 
         void showPopup(const Wt::WMouseEvent& event);
         Wt::WContainerWidget* label_wrapper_;

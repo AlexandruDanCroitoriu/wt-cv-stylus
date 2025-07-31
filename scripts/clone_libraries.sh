@@ -105,7 +105,6 @@ main() {
         "https://github.com/emweb/wt.git|wt-4.11-release|4.11-release"
         "https://github.com/ggml-org/whisper.cpp.git|whisper.cpp|"
         "https://github.com/leethomason/tinyxml2.git|tinyxml2|"
-        "https://github.com/open-source-parsers/jsoncpp.git|jsoncpp|"
         "https://github.com/nlohmann/json.git|nlohmann-json|"
     )
     

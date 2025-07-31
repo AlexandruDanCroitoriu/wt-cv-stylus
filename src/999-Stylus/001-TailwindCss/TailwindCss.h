@@ -22,6 +22,8 @@ private:
     std::vector<std::string> getConfigFiles();
     void generateCssFile();
 
+    std::string css_selected_file_path_;
+
     Wt::WString current_css_file_path_;
     Wt::WString prev_css_file_path_;
     Wt::WComboBox* config_files_combobox_;

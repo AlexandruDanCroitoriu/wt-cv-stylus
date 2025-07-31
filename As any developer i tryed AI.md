@@ -1,0 +1,15 @@
+As any developer i tryed AI.
+
+I started learning the ways of programing in 2020 when AI was not used or marketed as the tool of tools to create code.
+
+Because i struggled to learn the basics and realy thought about what to build how to build it, what tools to use, how to use them, and so on, after answaring the questions and learning my technology, I got to the joy of writing code with comfort, witch feelt like my brain was on steroids. When you are proficient in a language/framework and know your concepts you realize that there are a so many ways to do something, but one way to do it right for your needs. And what are the needs? i think this is environment constraints and most of this is personal preferance constraints.
+
+When AI started to become interesting i also started using it for code completions and i was impressed. Before AI, most of the coding thinking i was doing was on actualy writing the code and testing at every step. Creating a function and defining all the code in it whould take me some time because even after writing it, i whould change the parameters or the logic. I dont think i was a verry good planner and the development process involves a lot of thinking over the actual programing apis you create, more than the actual implementation logic. 
+
+I was impressed is to say the least, it was perspective changing as before using it i was a code writer and now i was a code reviewer. I was able to think more about the general arhitecture of the code and for the actual implementations i whould start writing and copilot whould fill in what whould take me some more thought. Indeed you could say this leads to lazyness, and i agree, for lazy people AI is poison. As in any industry, when tools ware created, more jobs ware created as the way of working changed. I think AI is the same, it will not replace developers, it will transform the ones interested into something better.
+
+Now all of this is just code completions/prompting and for the most part of my experiance with AI, this is what i used as it seemd perfect and I dont see a need to overcomplicate things. With just this my development process was faster, my mind was more free to iterate over arhitecture and ideeas, debugging become easier as its verry easy to prompt AI to add print statements to a anithing and so on for all the procesees i whould do, including thinking partner for diferent approaches.
+
+Now that i got used to the prompting and completion tools, I'm getting interested in the chat and agent tools that everybody is talking about. As i already have copilot pro, I'm not interested in other vs code forks with dreams and investors to please, I researched what github copilot has to offer in this space and conceptualy they sound very good.
+
+Lets start with the most recent thing i found.

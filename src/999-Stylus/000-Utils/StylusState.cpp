@@ -46,7 +46,6 @@ namespace Stylus
         {
             std::sort(folder.second.begin(), folder.second.end());
         }
-        folders_ = return_folders;
         // folders_changed_.emit("");
         return return_folders;
     }

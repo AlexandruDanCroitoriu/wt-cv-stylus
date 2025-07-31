@@ -37,6 +37,10 @@ namespace Stylus
         // footer_->setStyleClass("flex items-center justify-between p-[3px] border-t border-solid");
         // footer_->hide();
         setTreeFolderWidgets();
+        folders_changed_.connect(this, [=]()
+        {
+            setTreeFolderWidgets();
+        });
 
     }
 
@@ -48,6 +52,18 @@ namespace Stylus
         }
     }
 
+    TreeNode* FileExplorerTree::selectedNode()
+    {
+        if (tree_) {
+            auto selected_nodes = tree_->selectedNodes();
+            if (!selected_nodes.empty()) {
+                // Return the first selected node as TreeNode*, or nullptr if cast fails
+                return dynamic_cast<TreeNode*>(*selected_nodes.begin());
+            }
+        }
+        return nullptr;
+    }
+
     void FileExplorerTree::setTreeFolderWidgets()
     {
         auto node = std::make_unique<TreeNode>(data_.root_folder_path_, TreeNodeType::Folder, data_.root_folder_path_, data_);
@@ -57,10 +73,10 @@ namespace Stylus
         tree_->treeRoot()->label()->setTextFormat(Wt::TextFormat::Plain);
         tree_->treeRoot()->expand();
         // tree_->treeRoot()->setLoadPolicy(Wt::ContentLoading::NextLevel);
-        std::vector<std::pair<std::string, std::vector<std::string>>> folders;
+        std::vector<std::pair<std::string, std::vector<std::string>>> folders = data_.getFolders();
+        
 
-
-        for (auto folder : data_.folders_)
+        for (auto folder : folders)
         {
             TreeNode *folder_tree_node = dynamic_cast<TreeNode *>(tree_->treeRoot()->addChildNode(std::make_unique<TreeNode>(folder.first, TreeNodeType::Folder, data_.root_folder_path_, data_)));
 
@@ -84,14 +100,14 @@ namespace Stylus
                     file_selected_.emit(selected_file_path_);
                 } });
 
-                file_tree_node->folders_changed_.connect(this, [=](std::string selected_file_path)
+                file_tree_node->folders_changed_.connect(this, [=]()
                                                          {
                 // if(selected_file_path.compare("") != 0) {
                 //     selected_file_path_ = selected_file_path;
                 // }
                 // getFolders();
                 // file_selected_.emit(selected_file_path_);
-                folders_changed_.emit(selected_file_path); });
+                folders_changed_.emit(); });
             }
 
             if (folder.second.size() > 0)
@@ -99,19 +115,19 @@ namespace Stylus
                 folder_tree_node->expand();
             }
 
-            folder_tree_node->folders_changed_.connect(this, [=](std::string selected_file_path)
+            folder_tree_node->folders_changed_.connect(this, [=]()
                                                        {
             // if(selected_file_path.compare("") != 0) {
             //     selected_file_path_ = selected_file_path;
             // }
             // getFolders();
             // file_selected_.emit(selected_file_path_);
-            folders_changed_.emit(selected_file_path); });
+            folders_changed_.emit(); });
         }
 
-        root_folder->folders_changed_.connect(this, [=](std::string selected_file_path)
+        root_folder->folders_changed_.connect(this, [=]()
                                               {
-                                                  folders_changed_.emit(selected_file_path);
+                                                  folders_changed_.emit();
                                                   // if(selected_file_path.compare("") != 0) {
                                                   //     selected_file_path_ = selected_file_path;
                                                   // }
@@ -129,7 +145,7 @@ namespace Stylus
     {
         // setStyleClass("relative");
         label_wrapper_ = labelArea();
-        label_wrapper_->addStyleClass("flex items-center cursor-pointer mr-[3px]");
+        label_wrapper_->addStyleClass("flex items-center cursor-pointer mr-[3px] text-on-surface");
 
         if (type_ == TreeNodeType::Folder)
         {
@@ -222,7 +238,8 @@ namespace Stylus
                     std::filesystem::path old_path(source_node->path_ + source_node->label()->text().toUTF8());
                     std::filesystem::path new_path(path_ + this->label()->text().toUTF8() + "/" + source_node->label()->text().toUTF8());
                     std::filesystem::rename(old_path, new_path);
-                    folders_changed_.emit(this->label()->text().toUTF8() + "/" + source_node->label()->text().toUTF8());
+                    // folders_changed_.emit(this->label()->text().toUTF8() + "/" + source_node->label()->text().toUTF8());
+                    folders_changed_.emit();
                 }else {
                     source_node->selected().emit(true);
                 }
@@ -235,7 +252,8 @@ namespace Stylus
             std::filesystem::path old_path(source_node->path_ + source_node->label()->text().toUTF8());
             std::filesystem::path new_path(path_ + label()->text().toUTF8() + "/" + source_node->label()->text().toUTF8());
             std::filesystem::rename(old_path, new_path);
-            folders_changed_.emit(label()->text().toUTF8() + "/" + source_node->label()->text().toUTF8());
+            // folders_changed_.emit(label()->text().toUTF8() + "/" + source_node->label()->text().toUTF8());
+            folders_changed_.emit();
         }
         else
         {
@@ -248,7 +266,8 @@ namespace Stylus
         if (!popup_)
         {
             popup_ = std::make_unique<Wt::WPopupMenu>();
-
+            popup_->setStyleClass("bg-surface !text-on-surface");
+            
             if (type_ == TreeNodeType::Folder)
             {
                 if (label()->text().toUTF8().compare(path_) == 0)
@@ -347,7 +366,7 @@ namespace Stylus
             std::string new_folder_name = new_folder_name_input->text().toUTF8();
             std::filesystem::path new_path(path_ + new_folder_name);
             std::filesystem::create_directory(new_path);
-            folders_changed_.emit("");
+            folders_changed_.emit();
         }
         removeChild(dialog); });
         dialog->show();
@@ -412,7 +431,7 @@ namespace Stylus
             std::filesystem::path new_path(path_ + new_folder_name);
             std::filesystem::rename(old_path, new_path);
             this->label()->setText(new_folder_name);
-            folders_changed_.emit("");
+            folders_changed_.emit();
         }
         removeChild(dialog); });
         dialog->show();
@@ -447,7 +466,7 @@ namespace Stylus
 
             // delete folder and all its contents
             std::filesystem::remove_all(file_path);
-            folders_changed_.emit("");
+            folders_changed_.emit();
             
         }
         removeChild(message_box); });
@@ -523,7 +542,8 @@ namespace Stylus
                 new_file << "</messages>\n";
                 new_file.close();
             }
-            folders_changed_.emit(this->label()->text().toUTF8() + "/" + new_file_name);
+            // folders_changed_.emit(this->label()->text().toUTF8() + "/" + new_file_name);
+            folders_changed_.emit();
         }
         removeChild(dialog); });
 
@@ -586,7 +606,8 @@ namespace Stylus
             std::filesystem::path old_path(path_ + this->label()->text().toUTF8());
             std::filesystem::path new_path(path_ + new_file_name);
             std::filesystem::rename(old_path, new_path);
-            folders_changed_.emit(parentNode()->label()->text().toUTF8() + "/" + new_file_name);
+            // folders_changed_.emit(parentNode()->label()->text().toUTF8() + "/" + new_file_name);
+            folders_changed_.emit();
         }
         removeChild(dialog); });
         dialog->show();
@@ -616,7 +637,7 @@ namespace Stylus
             std::filesystem::path file_path = path_ + label()->text().toUTF8();
             // delete file
             if (std::filesystem::remove(file_path)) {
-                folders_changed_.emit("");
+                folders_changed_.emit();
             } else {
                 Wt::WApplication::instance()->log("ERROR") << "\n\nError deleting file.\n\n";                    
             }

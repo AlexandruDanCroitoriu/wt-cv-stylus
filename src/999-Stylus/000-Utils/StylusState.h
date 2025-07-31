@@ -26,7 +26,6 @@ namespace Stylus
         std::string root_folder_path_;
         std::string root_resource_url_;
         std::vector<std::pair<std::string, std::vector<std::string>>> getFolders();
-        std::vector<std::pair<std::string, std::vector<std::string>>> folders_;
     };
 
     struct MessageAttributeData {

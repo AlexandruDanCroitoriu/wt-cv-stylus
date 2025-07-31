@@ -8,6 +8,7 @@
 @source "../../../src/";
 
 /* Import custom CSS files */
+@import "./css/test/test.css";
 /* Define custom theme */
 @custom-variant dark (&:where(.dark, .dark *));
 @custom-variant theme-arctic (&:where([data-theme="arctic"], [data-theme="arctic"] *));

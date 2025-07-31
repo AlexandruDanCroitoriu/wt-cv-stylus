@@ -120,16 +120,6 @@
 - Status feedback and error handling
 - Integration with Wt::WFileUpload for file management
 
-### Star Wars API (`101-StarWarsApi/`)
-**Purpose**: External API integration example
-
-#### StarWarsApi.h/cpp
-- Demonstrates HTTP API consumption
-- Uses cpr library for HTTP requests
-- JSON response parsing with nlohmann/json
-- Async operations and UI updates
-- Error handling for network operations
-
 ## Component Interaction Patterns
 
 ### Widget Hierarchy

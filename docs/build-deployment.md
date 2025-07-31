@@ -15,7 +15,7 @@ project(app)
 
 ### Dependencies
 - **nlohmann/json**: JSON parsing library
-- **cpr**: HTTP client library
+- **TinyXML2**: Lightweight XML parser
 - **Wt**: Core web framework (system dependency)
 
 ### Build Targets
